@@ -21,9 +21,6 @@ import           CourseScalpel.Program     (Program (..))
 import qualified CourseScalpel.ProgramPage as ProgramPage
 import           CourseScalpel.Web         (Url (..))
 
-courseUrl :: Url
-courseUrl = Url "https://liu.se/studieinfo/kurs/"
-
 data ScrapeProgramRes
   = ScrapeProgramRes         [AppError] [Course]
   | ScrapeProgramNetworkFail AppError
@@ -53,27 +50,37 @@ scrapeProgram program = do
   let courseEs    = fmap CoursePage.toCourse <$> coursePages :: [m Course]
   ScrapeProgramRes [] <$> sequence courseEs
   
---  pure . uncurry ScrapeProgramRes $ partitionErrors courseEs
-
-programToUrl :: Program -> Url
-programToUrl =
-  Url . (<>) programUrl .
-  T.tail . T.pack . show . programSlug
   where
-    programUrl = "https://liu.se/studieinfo/program/"
+    programToUrl :: Program -> Url
+    programToUrl =
+      Url . (<>) "https://liu.se/studieinfo/program/" .
+      T.tail . T.pack . show . programSlug
 
 data ScrapeCourseRes
-  = ScrapeCourseSuccess     Course
-  | ScrapeCourseParseFail   AppError
-  | ScrapeCourseNetworkFail AppError
+  = ScrapeCourseSuccess      Course
+  | ScrapeCourseParseError   AppError
+  | ScrapeCourseNetworkError AppError
 
 instance Show ScrapeCourseRes where
   show (ScrapeCourseSuccess      _ ) = "Course scraped!"
-  show (ScrapeCourseParseFail   err) = "Parsing failure: " <> show err
-  show (ScrapeCourseNetworkFail err) = "Network failure: " <> show err
+  show (ScrapeCourseParseError   err) = "Parsing failure: " <> show err
+  show (ScrapeCourseNetworkError err) = "Network failure: " <> show err
 
 scrapeCourse :: forall m. (MonadIO m, HasError m) => Text -> m ScrapeCourseRes
-scrapeCourse courseCode = undefined
+scrapeCourse code = do
+  coursePage <- CoursePage.scrape $ courseCodeToUrl code
+  pure . ScrapeCourseSuccess $ CoursePage.toCourse coursePage
+
+{-do
+  eCoursePage <- CoursePage.scrape $ courseCodeToUrl code
+  pure $ case eCoursePage of
+    Left  error      -> ScrapeCourseNetworkError error
+    Right coursePage -> ScrapeCourseSuccess $ CoursePage.toCourse coursePage
+  -}
+  where
+    courseCodeToUrl :: Text -> Url
+    courseCodeToUrl = Url . (<>) "https://liu.se/studieinfo/kurs/"
+      
 {-do
   let url = courseCodeToUrl courseCode
   mePageCourses <- scrapeURL (T.unpack $ getUrl url)
@@ -86,5 +93,5 @@ scrapeCourse courseCode = undefined
       either ScrapeCourseParseFail ScrapeCourseSuccess ePageCourse
 -}
 
-networkError :: Url -> Text
-networkError url = "Scalpel returned Nothing for url " <> getUrl url
+--networkError :: Url -> Text
+--networkError url = "Scalpel returned Nothing for url " <> getUrl url
