@@ -29,7 +29,7 @@ spec :: SpecWith ()
 spec =
   describe "coursePageScraper" $ do
     it "scrapes tata65 correctly" $ do
-      markup <- readFile "markup/course-tata65.html"
+      markup <- readFile "test/markup/course-tata65.html"
       scrapeStringLike markup CoursePage.scraper `shouldBe` Just
         (Right CoursePage
          { coursePageHeader = CoursePage.Header
@@ -155,7 +155,7 @@ spec =
 
     describe "parseExaminations" $ do
       it "parses expected markup" $ do
-        input <- readFile "markup/examination.html"
+        input <- readFile "test/markup/examination.html"
         let actual   = CoursePage.parseExaminations input
             expected = Right
               [ Course.Examination "TEN1"
@@ -197,7 +197,7 @@ spec =
         actual `shouldBe` expected
 
       it "parses expected markup" $ do
-        input <- readFile "markup/examination-tams22.html"
+        input <- readFile "test/markup/examination-tams22.html"
         let expected1 = Course.Examination
               { examinationCode        = "TEN1"
               , examinationType        = Course.ExaminationTypeTEN
@@ -219,7 +219,7 @@ spec =
 
     describe "parseUrls" $ do
       it "parses an url" $ do
-        input <- readFile "markup/url.html"
+        input <- readFile "test/markup/url.html"
         let expected = Right [Url "http://www.isy.liu.se/en/edu/kurs/TSTE12/"]
             actual   = CoursePage.parseUrls input
         actual `shouldBe` expected
@@ -347,7 +347,7 @@ spec =
 
     describe "parse CourseTime" $ do
       it "parses correct markup" $ do
-        input <- readFile "markup/hours.html"
+        input <- readFile "test/markup/hours.html"
         let expected = Right $ CoursePage.Time 800 900
             actual   = CoursePage.parseTime input
         actual `shouldBe` expected

@@ -25,7 +25,7 @@ spec :: SpecWith ()
 spec = do
   describe "programPageContentScraper" $
     it "scrapes program 6cddd correctly" $ do
-     markup <- readFile "markup/program-6cddd.html"
+     markup <- readFile "test/markup/program-6cddd.html"
      let eProgramPageContent = fromJust $
            scrapeStringLike markup ProgramPage.contentScraper
 
