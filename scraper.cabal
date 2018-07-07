@@ -1,0 +1,90 @@
+cabal-version:       >=2.0.1
+name:                course-scalpel
+version:             0.1.0.0
+-- synopsis:
+homepage:            https://github.com/sebastiancallh/course-scalpel#readme   
+description:         Application for scraping courses from liu.se/studieinfo.
+license:             BSD3
+license-file:        LICENSE
+author:              Sebastian Callh
+maintainer:          sebastian.callh@gmail.com
+copyright:           BSD3
+category:            Web
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+
+executable course-scalpel-cli
+  main-is:             Main.hs
+  hs-source-dirs:      cli
+  default-language:    Haskell2010
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-tool-depends:  ghcid:ghcid
+  build-depends:       base >=4.7 && <5
+                     , containers
+                     , course-scalpel
+                     , monad-logger
+                     , mtl
+                     , optparse-applicative
+                     , scalpel
+                     , text
+                     , time
+  other-modules:       CourseScalpel.Cli
+                     , CourseScalpel.Cli.Internal
+                       
+library
+  hs-source-dirs:      src
+  ghc-options:         -Wall -O2
+  default-extensions:  RecordWildCards
+                     , OverloadedStrings
+                     , FlexibleContexts
+                     , ScopedTypeVariables
+                     , ConstraintKinds
+                     , LambdaCase
+  build-depends:       base >=4.7 && <5
+                     , HUnit
+                     , QuickCheck
+                     , aeson
+                     , containers
+                     , either
+                     , hlint
+                     , hspec
+                     , megaparsec
+                     , monad-logger 
+                     , mtl
+                     , parser-combinators
+                     , prettyprinter
+                     , quickcheck-arbitrary-adt
+                     , safe
+                     , scalpel
+                     , text
+                     , validation
+  exposed-modules:     CourseScalpel
+                     , CourseScalpel.App
+                     , CourseScalpel.CoursePage
+                     , CourseScalpel.Error
+                     , CourseScalpel.Parsing
+                     , CourseScalpel.ProgramPage
+                     , CourseScalpel.Course
+                     , CourseScalpel.Program
+                     , CourseScalpel.Web
+                     , CourseScalpel.Web.Url
+  default-language:    Haskell2010
+  
+test-suite course-scalpel-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs: test
+  default-extensions: OverloadedStrings RecordWildCards LambdaCase
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:  HUnit
+                , QuickCheck
+                , base
+                , mtl
+                , course-scalpel
+                , hspec
+                , scalpel
+                , text
+                , validation
+  other-modules:  CourseScalpel.CoursePageSpec
+                , CourseScalpel.ProgramPageSpec
+  default-language: Haskell2010
