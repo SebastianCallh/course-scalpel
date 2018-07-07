@@ -26,11 +26,9 @@ module CourseScalpel.Program
   , engKB
   ) where
 
-import qualified Data.Text                     as T
 import           Test.QuickCheck               (Arbitrary, arbitrary, oneof)
 import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
                                                 genericArbitrary)
-import           Text.HTML.Scalpel             (chroot, scrapeStringLike, texts)
 
 import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.Data                     (Typeable)
@@ -42,14 +40,6 @@ import           CourseScalpel.Parsing         (parseError)
 
 --- Program ---
 
--- | Will ignore programs that have not been manually put into the system.
-parseMany :: HasError m => Text -> m [Program]
-parseMany x =
-  let mTxts = scrapeStringLike x $ chroot "ul" $ texts "li"
-  in case mTxts of
-    Nothing   -> parseError x "Program"
-    Just txts -> traverse parse txts
-
 data Program = Program
   { programCode :: !Code
   , programSlug :: !Slug
@@ -57,25 +47,6 @@ data Program = Program
 
 instance Arbitrary Program where
   arbitrary = oneof $ pure <$> supportedPrograms
-
-parse :: HasError m => Text -> m Program
-parse "Civilingenjör i medicinsk teknik"                      = pure engMed
-parse "Civilingenjör i medieteknik"                           = pure engMT
-parse "Civilingenjör i informationsteknologi"                 = pure engIT
-parse "Civilingenjör i elektronikdesign"                      = pure engED
-parse "Civilingenjör i kommunikation, transport och samhälle" = pure engKTS
-parse "Civilingenjör i maskinteknik"                          = pure engM
-parse "Civilingenjör i industriell ekonomi"                   = pure engI
-parse "Civilingenjör i industriell ekonomi - internationell"  = pure engIInt
-parse "Civilingenjör i energi - miljö - management"           = pure engEMM
-parse "Civilingenjör i teknisk fysik och elektroteknik - internationell" = pure engYInt
-parse "Civilingenjör i teknisk biologi"                       = pure engTB
-parse "Civilingenjör i mjukvaruteknik"                        = pure engU
-parse "Civilingenjör i design och produktutveckling"          = pure engDPU
-parse "Civilingenjör i kemisk biologi - med valbar utgång till naturvetenskaplig kandidat" = pure engKB
-parse "Civilingenjör i datateknik"                            = pure engD
-parse "Civilingenjör i teknisk fysik och elektroteknik"       = pure engY
-parse x = parseError x "Program"
 
 --- Code ---
 
@@ -131,7 +102,7 @@ instance Arbitrary Slug where
 parseSlug :: HasError m => Text -> m Slug
 parseSlug "6CDDD" = pure P6CDDD -- D
 parseSlug "6CMJU" = pure P6CMJU -- U
-parseSlug "6CMJU" = pure P6CIII -- I
+parseSlug "6CIII" = pure P6CIII -- I
 parseSlug "6CIEI" = pure P6CIEI -- IInt
 parseSlug "6CITE" = pure P6CITE -- IT
 parseSlug "6CYYY" = pure P6CYYY -- Y
