@@ -4,17 +4,18 @@
 
 module CourseScalpel.Cli.Internal where
 
-import           Control.Monad.Except  (MonadError, throwError)
-import           Data.Semigroup        ((<>))
-import           Data.Text             (Text)
-import qualified Data.Text             as T
+import           Control.Monad.Except      (MonadError, throwError)
+import           Data.Semigroup            ((<>))
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import           Data.Text.Prettyprint.Doc
 
-import           CourseScalpel.Error   (AppError (..))
-import           CourseScalpel.Program (Code (..), Program (..), engD, engDPU,
-                                        engED, engEMM, engI, engIInt, engIT,
-                                        engKB, engKTS, engM, engMT, engMed,
-                                        engTB, engU, engY, engYInt,
-                                        supportedPrograms)
+import           CourseScalpel.Error       (AppError (..))
+import           CourseScalpel.Program     (Code (..), Program (..), engD,
+                                            engDPU, engED, engEMM, engI,
+                                            engIInt, engIT, engKB, engKTS, engM,
+                                            engMT, engMed, engTB, engU, engY,
+                                            engYInt, supportedPrograms)
 --import qualified CourseScalpel.Program as Program
 
 type HasCliError = MonadError CliError
@@ -22,6 +23,12 @@ type HasCliError = MonadError CliError
 data CliError
   = ParseProgramError Text
   | CourseScalpelError AppError
+
+instance Pretty CliError where
+  pretty (ParseProgramError txt) =
+    pretty ("Error parsing program: " :: Text) <> pretty txt
+  pretty (CourseScalpelError appError) =
+    pretty ("Application error: " :: Text) <> pretty appError
 
 readProgram :: HasCliError m => String -> m Program
 readProgram "d"   = pure engD

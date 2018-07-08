@@ -7,11 +7,12 @@ module CourseScalpel.Error
   , appError
   ) where
 
-import           Control.Monad.Except  (MonadError, throwError)
-import           Data.Semigroup        (Semigroup (..), (<>))
-import           Data.Text             (Text)
+import           Control.Monad.Except      (MonadError, throwError)
+import           Data.Semigroup            (Semigroup (..), (<>))
+import           Data.Text                 (Text)
+import           Data.Text.Prettyprint.Doc
 
-import           CourseScalpel.Web.Url (Url (..))
+import           CourseScalpel.Web.Url     (Url (..))
 
 type ErrorMessage = Text
 
@@ -35,6 +36,22 @@ instance Semigroup AppError where
     MultipleErrors [ParseError txt msg, ScrapeError url msg']
   (<>) (ScrapeError url msg) (ParseError txt msg')   =
     MultipleErrors [ScrapeError url msg, ParseError txt msg']
+
+instance Pretty AppError where
+  pretty (ParseError  txt msg)
+    =  "Error parsing "
+    <> pretty txt
+    <> ". Error message: "
+    <> pretty msg
+
+  pretty (ScrapeError url msg)
+    =  "Error scraping "
+    <> pretty url
+    <> pretty (". Error message: " :: Text)
+    <> pretty msg
+
+  pretty (MultipleErrors errors) =
+    pretty errors
 
 -- | May want to change error handling, so it gets its own type
 type HasError = MonadError AppError

@@ -25,6 +25,7 @@ executable course-scalpel-cli
                      , monad-logger
                      , mtl
                      , optparse-applicative
+                     , prettyprinter
                      , scalpel
                      , text
                      , time

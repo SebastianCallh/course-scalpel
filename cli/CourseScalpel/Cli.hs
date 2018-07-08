@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
 module CourseScalpel.Cli
@@ -13,7 +14,7 @@ import           Control.Monad.Except       (ExceptT (..), MonadError,
 import           Control.Monad.IO.Class     (liftIO)
 import           Control.Monad.Logger       (LogLevel (..), logWithoutLoc)
 import           Control.Monad.Logger       (LoggingT, MonadLogger,
-                                             runFileLoggingT)
+                                             runFileLoggingT, runStdoutLoggingT)
 import           Control.Monad.Reader       (asks)
 import           Control.Monad.Reader       (MonadIO, MonadReader, ReaderT,
                                              runReaderT)
@@ -24,6 +25,8 @@ import           Data.List                  (intercalate)
 import           Data.Semigroup             ((<>))
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
+import qualified Data.Text.IO               as T
+import           Data.Text.Prettyprint.Doc
 import           Data.Time.Clock            (getCurrentTime)
 import           Options.Applicative
 
@@ -34,6 +37,7 @@ import           CourseScalpel              (CourseScalpelRunner,
                                              scrapeProgram)
 import           CourseScalpel.Cli.Internal (CliError (..), readProgram,
                                              writeProgram)
+import           CourseScalpel.Error        (AppError)
 import           CourseScalpel.Program      (Code (..), Program (..), engD,
                                              engDPU, engED, engEMM, engI,
                                              engIInt, engIT, engKB, engKTS,
@@ -64,17 +68,15 @@ newtype CliApp a = CliApp { unCli :: ExceptT CliError (ReaderT Options (LoggingT
 main :: IO ()
 main = do
   options <- execParser opts
-  case optionsOutput options of
-    OutputFile f -> putStrLn f
-    OutputStdOut -> putStrLn "stdout"
-
   result  <- runCliApp options cliApp
-  pure ()
+  case result of
+    Left cliError -> putStrLn . show $ pretty cliError
+    Right _       -> putStrLn "Done!"
 
 runCliApp :: Options -> CliApp a -> IO (Either CliError a)
 runCliApp options = logRunner . readerRunner . runExceptT . unCli
   where
-    logRunner      = runFileLoggingT $ optionsLogFile options
+    logRunner      = runStdoutLoggingT -- $ optionsLogFile options
     readerRunner x = runReaderT x options
 
 cliApp :: CliApp ()
@@ -96,15 +98,10 @@ scrapePrograms' runner codes = do
   results <- forM codes $ \code -> do
     putLn $ "Scraping program " <> code
     program <- readProgram code
-    result  <- liftIO . runner . scrapeProgram $ program
+    result <- liftIO $ runner . scrapeProgram $ program
 
-    --liftIO $ runCourseScalpel
-    --      (mkConfig logFilePath)
-    --      ()
-
-    putLn $ show result
     pure result
-  outputResult $ show results
+  outputResult results
 
 scrapeCourse'
   :: CourseScalpelRunner ScrapeCourseRes
@@ -112,26 +109,25 @@ scrapeCourse'
   -> CliApp ()
 scrapeCourse' runner code = do
   putLn $ "Scraping course " <> code
-  eResult <- liftIO . runner . scrapeCourse $ T.pack code
-  putLn $ show eResult
+  result <- liftIO . runner . scrapeCourse $ T.pack code
+  outputResult [result]
 
-{-
-  case eResult of
-    Left appErr ->
-      ScrapeCourseSuccess coursePage ->
-outputResult $ show coursePage
-    err -> putLn $ show err
--}
+outputResult :: Pretty a => [Either AppError a] -> CliApp ()
+outputResult result =
+  asks optionsOutput >>= \case
+    OutputStdOut    -> do
+      liftIO $ traverse (putStrLn . prettyEither) result
+      pure ()
 
-outputResult :: String -> CliApp ()
-outputResult result = do
-  output <- asks optionsOutput
-  case output of
-    OutputStdOut    -> putLn $ "Output:" <> result
     OutputFile path -> do
-      liftIO $ writeFile path result
+      liftIO . writeFile path . show $ traverse prettyEither result
       putLn $ "Result written to " <> path
 
+-- Would like to derive a (Pretty a, Pretty e) => Pretty (Either e a)
+-- someplace instead of this, but it would be an orphan instance.
+prettyEither :: Pretty a => Either AppError a -> String
+prettyEither (Left error) = show $ pretty error
+prettyEither (Right a)    = show $ pretty a
 
 putLn :: String -> CliApp ()
 putLn = liftIO . putStrLn

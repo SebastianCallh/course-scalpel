@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass   #-}
 {-# LANGUAGE DeriveGeneric    #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards  #-}
 
 module CourseScalpel.Course where
 
@@ -57,6 +58,17 @@ instance Eq Course where
 
 instance Ord Course where
   (<=) a b = LT == comparing courseCode a b
+
+instance Pretty Course where
+  pretty Course{..}
+    = mconcat
+    [ pretty courseCode
+    , ": "
+    , pretty courseName
+    , ", "
+    , pretty courseCredits
+    ]
+
 
 --- Area ---
 
