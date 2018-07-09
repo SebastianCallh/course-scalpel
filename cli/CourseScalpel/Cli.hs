@@ -8,47 +8,64 @@ module CourseScalpel.Cli
   ( main
   ) where
 
-import           Control.Monad              (forM, forM_)
-import           Control.Monad.Except       (ExceptT (..), MonadError,
-                                             runExceptT, throwError)
-import           Control.Monad.IO.Class     (liftIO)
-import           Control.Monad.Logger       (LogLevel (..), logWithoutLoc)
-import           Control.Monad.Logger       (LoggingT, MonadLogger,
-                                             runFileLoggingT, runStdoutLoggingT)
-import           Control.Monad.Reader       (asks)
-import           Control.Monad.Reader       (MonadIO, MonadReader, ReaderT,
-                                             runReaderT)
-import           Control.Monad.Trans        (lift)
-import           Data.Char                  (toLower)
-import           Data.Either                (partitionEithers)
-import           Data.List                  (intercalate)
-import           Data.Semigroup             ((<>))
-import           Data.Text                  (Text)
-import qualified Data.Text                  as T
-import qualified Data.Text.IO               as T
+import           Control.Monad             (forM, forM_)
+import           Control.Monad.Except      (ExceptT (..), MonadError,
+                                            runExceptT, throwError)
+import           Control.Monad.IO.Class    (liftIO)
+import           Control.Monad.Logger      (LogLevel (..), logWithoutLoc)
+import           Control.Monad.Logger      (LoggingT, MonadLogger,
+                                            runFileLoggingT, runStdoutLoggingT)
+import           Control.Monad.Reader      (asks)
+import           Control.Monad.Reader      (MonadIO, MonadReader, ReaderT,
+                                            runReaderT)
+import           Control.Monad.Trans       (lift)
+import           Data.Char                 (toLower)
+import           Data.Either               (partitionEithers)
+import           Data.List                 (intercalate)
+import           Data.List.Split           (splitOn)
+import           Data.Semigroup            ((<>))
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import qualified Data.Text.IO              as T
 import           Data.Text.Prettyprint.Doc
-import           Data.Time.Clock            (getCurrentTime)
+import           Data.Time
+import           Data.Time.Calendar
+import           Data.Time.Clock
+import           Data.Time.Clock           (getCurrentTime)
 import           Options.Applicative
 
-import           CourseScalpel              (CourseScalpelRunner,
-                                             ScrapeCourseRes (..),
-                                             ScrapeProgramRes (..), mkConfig,
-                                             runCourseScalpel, scrapeCourse,
-                                             scrapeProgram)
-import           CourseScalpel.Cli.Internal (CliError (..), readProgram,
-                                             writeProgram)
-import           CourseScalpel.Error        (AppError)
-import           CourseScalpel.Program      (Code (..), Program (..), engD,
-                                             engDPU, engED, engEMM, engI,
-                                             engIInt, engIT, engKB, engKTS,
-                                             engM, engMT, engMed, engTB, engU,
-                                             engY, engYInt, supportedPrograms)
+import           CourseScalpel             (CourseScalpelRunner,
+                                            ScrapeCourseRes (..),
+                                            ScrapeProgramRes (..), Term (..),
+                                            mkConfig, runCourseScalpel,
+                                            scrapeCourse, scrapeProgram)
+import           CourseScalpel.Error       (AppError)
+import           CourseScalpel.Program     (Code (..), Program (..), engD,
+                                            engDPU, engED, engEMM, engI,
+                                            engIInt, engIT, engKB, engKTS, engM,
+                                            engMT, engMed, engTB, engU, engY,
+                                            engYInt, programCode,
+                                            supportedPrograms)
+import           CourseScalpel.Time        (Year (..))
+
+
+type HasCliError = MonadError CliError
+
+data CliError
+  = ParseProgramError Text
+  | CourseScalpelError AppError
+
+instance Pretty CliError where
+  pretty (ParseProgramError txt) =
+    "Error parsing program: " <> pretty txt
+  pretty (CourseScalpelError appError) =
+    "Application error: " <> pretty appError
 
 type CourseCodeStr  = String
 type ProgramCodeStr = String
 
 data Target
-  = TargetPrograms [ProgramCodeStr]
+  = TargetPrograms [Program]
   | TargetCourse  CourseCodeStr
 
 data Output
@@ -59,6 +76,8 @@ data Options = Options
   { optionsTarget  :: Target
   , optionsOutput  :: Output
   , optionsLogFile :: FilePath
+  , optionsYear    :: Year
+  , optionsTerm    :: Term
   }
 
 newtype CliApp a = CliApp { unCli :: ExceptT CliError (ReaderT Options (LoggingT IO)) a }
@@ -67,8 +86,9 @@ newtype CliApp a = CliApp { unCli :: ExceptT CliError (ReaderT Options (LoggingT
 
 main :: IO ()
 main = do
-  options <- execParser opts
-  result  <- runCliApp options cliApp
+  (year, _, _) <- getCurrentTime >>= return . toGregorian . utctDay
+  options      <- execParser . opts $ Year (fromIntegral year)
+  result       <- runCliApp options cliApp
   case result of
     Left cliError -> putStrLn . show $ pretty cliError
     Right _       -> putStrLn "Done!"
@@ -83,33 +103,36 @@ cliApp :: CliApp ()
 cliApp = do
   target  <- asks optionsTarget
   logFile <- asks optionsLogFile
+  year    <- asks optionsYear
+  term    <- asks optionsTerm
   let runner = runCourseScalpel $ mkConfig logFile
   case target of
-    TargetPrograms codes -> scrapePrograms' runner codes
-    TargetCourse   code  -> scrapeCourse'   runner code
+    TargetPrograms programs   -> scrapePrograms' runner programs
+    TargetCourse   courseCode -> scrapeCourse'   runner courseCode year term
 
 scrapePrograms'
   :: CourseScalpelRunner ScrapeProgramRes
-  -> [ProgramCodeStr]
+  -> [Program]
   -> CliApp ()
-scrapePrograms' runner codes = do
+scrapePrograms' runner programs = do
   logFilePath <- asks optionsLogFile
   putLn "Scraping programs..."
-  results <- forM codes $ \code -> do
-    putLn $ "Scraping program " <> code
-    program <- readProgram code
-    result <- liftIO $ runner . scrapeProgram $ program
-
+  results <- forM programs $ \program -> do
+    putLn $ "Scraping program " <> (show $ programCode program)
+    result <- liftIO . runner $ scrapeProgram program
     pure result
+
   outputResult results
 
 scrapeCourse'
   :: CourseScalpelRunner ScrapeCourseRes
   -> CourseCodeStr
+  -> Year
+  -> Term
   -> CliApp ()
-scrapeCourse' runner code = do
+scrapeCourse' runner code year term = do
   putLn $ "Scraping course " <> code
-  result <- liftIO . runner . scrapeCourse $ T.pack code
+  result <- liftIO . runner $ scrapeCourse (T.pack code) year term
   outputResult [result]
 
 outputResult :: Pretty a => [Either AppError a] -> CliApp ()
@@ -132,32 +155,54 @@ prettyEither (Right a)    = show $ pretty a
 putLn :: String -> CliApp ()
 putLn = liftIO . putStrLn
 
-opts :: ParserInfo Options
-opts = info (optionsParser <**> helper)
+opts :: Year -> ParserInfo Options
+opts year = info (optionsParser year <**> helper)
   ( fullDesc
   <> progDesc "Application for scraping course data from https://liu.se/studieinfo."
   <> header "Course Scalpel - a web scraper for Linköping University courses." )
 
-optionsParser :: Parser Options
-optionsParser =
-  Options       <$>
-  targetParser  <*>
-  outputParser  <*>
-  logFileParser
+optionsParser :: Year -> Parser Options
+optionsParser year =
+  Options         <$>
+  targetParser    <*>
+  outputParser    <*>
+  logFileParser   <*>
+  yearParser year <*>
+  termParser
 
 targetParser :: Parser Target
-targetParser = programTarget <|> courseTarget
+targetParser =
+  (TargetPrograms <$> programTarget) <|>
+  (TargetCourse   <$> courseTarget)
   where
-    programTarget =
-      TargetPrograms . words  <$> strOption
+    programTarget = option (eitherReader programs)
       (  long "programs"
       <> short 'p'
-      <> metavar "PROGRAM_CODES"
-      <> help "Target program to scrape."
+      <> metavar "PROGRAMS"
+      <> help "Target programs to scrape."
       )
 
-    courseTarget =
-      TargetCourse <$> strOption
+    programs :: String -> Either String [Program]
+    programs = traverse (program . fmap toLower) . splitOn " "
+    program "d"    = pure engD
+    program "u"    = pure engU
+    program "i"    = pure engI
+    program "iint" = pure engIInt
+    program "it"   = pure engIT
+    program "y"    = pure engY
+    program "yint" = pure engYInt
+    program "med"  = pure engMed
+    program "ed"   = pure engED
+    program "mt"   = pure engMT
+    program "kts"  = pure engKTS
+    program "m"    = pure engM
+    program "emm"  = pure engEMM
+    program "tb"   = pure engTB
+    program "dpu"  = pure engDPU
+    program "kb"   = pure engKB
+    program x      = Left $ "Can not parse Program from: " <> x
+
+    courseTarget = strOption
       (  long "course"
          <> short 'c'
          <> metavar "COURSE_CODE"
@@ -198,3 +243,53 @@ logFileParser = customLogFile <|> defaultLogFile
         ])
       )
 
+yearParser :: Year -> Parser Year
+yearParser year = (Year <$> inputYear) <|> (pure year)
+  where
+    inputYear   = option auto
+      (  long "year"
+        <> short 'y'
+        <> metavar "YEAR"
+        <> help (mconcat
+        [ "Specify what year to fetch courses for. May not be available at studyinfo. \n"
+        , "Needed together with a term to specify the time a course is given."
+        , "Example \"-y 2018\""
+        ])
+      )
+
+termParser :: Parser Term
+termParser = inputTerm
+  where
+    inputTerm = option (eitherReader term)
+      (  long "term"
+        <> short 't'
+        <> metavar "TERM"
+        <> help (mconcat
+        [ "Specify what term to fetch courses for. May not be available at studyinfo. \n"
+        , "Needed together with a year to specify the time a course is given."
+        , "Valid values are \"-t spring\" or \"-t autumn\" "
+        ])
+      )
+
+    term :: String -> Either String Term
+    term "autumn" = pure HT
+    term "spring" = pure VT
+    term x        = Left $ "Can not parse Term from: " <> x
+
+writeProgram :: Program -> String
+writeProgram (Program EngD  _)   = "d"
+writeProgram (Program EngU _)    = "u"
+writeProgram (Program EngIT _)   = "it"
+writeProgram (Program EngI _)    = "i"
+writeProgram (Program EngIInt _) = "ii"
+writeProgram (Program EngY _)    = "y"
+writeProgram (Program EngYInt _) = "yi"
+writeProgram (Program EngMed _)  = "med"
+writeProgram (Program EngMT _)   = "mt"
+writeProgram (Program EngED _)   = "ed"
+writeProgram (Program EngKTS _)  = "kts"
+writeProgram (Program EngM _)    = "m"
+writeProgram (Program EngEMM _)  = "emm"
+writeProgram (Program EngTB _)   = "tb"
+writeProgram (Program EngKB _)   = "kb"
+writeProgram (Program EngDPU _)  = "dpu"
