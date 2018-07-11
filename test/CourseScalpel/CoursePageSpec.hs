@@ -19,8 +19,7 @@ import qualified CourseScalpel.Course     as Course
 import           CourseScalpel.CoursePage (Blocks (..), CoursePage (..))
 import qualified CourseScalpel.CoursePage as CoursePage
 import           CourseScalpel.Error      (AppError)
-import           CourseScalpel.Parsing    (parseError)
-import           CourseScalpel.Parsing    (parse)
+import           CourseScalpel.Parsing    (parse, parseError)
 import           CourseScalpel.Program    (Program (..))
 import qualified CourseScalpel.Program    as Program
 import           CourseScalpel.Web        (Url (..))
@@ -89,7 +88,6 @@ spec =
            , planTime          = CoursePage.Time 80 80
            }
          })
-
 
     describe "parseBlocks" $ do
       it "parses single blocks correctly" $ do
