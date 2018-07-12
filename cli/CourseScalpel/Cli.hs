@@ -76,8 +76,6 @@ data Options = Options
   { optionsTarget  :: Target
   , optionsOutput  :: Output
   , optionsLogFile :: FilePath
-  , optionsYear    :: Year
-  , optionsTerm    :: Term
   }
 
 newtype CliApp a = CliApp { unCli :: ExceptT CliError (ReaderT Options (LoggingT IO)) a }
@@ -103,12 +101,10 @@ cliApp :: CliApp ()
 cliApp = do
   target  <- asks optionsTarget
   logFile <- asks optionsLogFile
-  year    <- asks optionsYear
-  term    <- asks optionsTerm
   let runner = runCourseScalpel $ mkConfig logFile
   case target of
     TargetPrograms programs   -> scrapePrograms' runner programs
-    TargetCourse   courseCode -> scrapeCourse'   runner courseCode year term
+    TargetCourse   courseCode -> scrapeCourse'   runner courseCode
 
 scrapePrograms'
   :: CourseScalpelRunner ScrapeProgramRes
@@ -127,12 +123,10 @@ scrapePrograms' runner programs = do
 scrapeCourse'
   :: CourseScalpelRunner ScrapeCourseRes
   -> CourseCodeStr
-  -> Year
-  -> Term
   -> CliApp ()
-scrapeCourse' runner code year term = do
+scrapeCourse' runner code = do
   putLn $ "Scraping course " <> code
-  result <- liftIO . runner $ scrapeCourse (T.pack code) year term
+  result <- liftIO . runner . scrapeCourse $ T.pack code
   outputResult [result]
 
 outputResult :: Pretty a => [Either AppError a] -> CliApp ()
@@ -166,9 +160,8 @@ optionsParser year =
   Options         <$>
   targetParser    <*>
   outputParser    <*>
-  logFileParser   <*>
-  yearParser year <*>
-  termParser
+  logFileParser
+--  yearParser year
 
 targetParser :: Parser Target
 targetParser =
@@ -242,39 +235,6 @@ logFileParser = customLogFile <|> defaultLogFile
         , "Example \"-l log.txt\""
         ])
       )
-
-yearParser :: Year -> Parser Year
-yearParser year = (Year <$> inputYear) <|> (pure year)
-  where
-    inputYear   = option auto
-      (  long "year"
-        <> short 'y'
-        <> metavar "YEAR"
-        <> help (mconcat
-        [ "Specify what year to fetch courses for. May not be available at studyinfo. \n"
-        , "Needed together with a term to specify the time a course is given."
-        , "Example \"-y 2018\""
-        ])
-      )
-
-termParser :: Parser Term
-termParser = inputTerm
-  where
-    inputTerm = option (eitherReader term)
-      (  long "term"
-        <> short 't'
-        <> metavar "TERM"
-        <> help (mconcat
-        [ "Specify what term to fetch courses for. May not be available at studyinfo. \n"
-        , "Needed together with a year to specify the time a course is given."
-        , "Valid values are \"-t spring\" or \"-t autumn\" "
-        ])
-      )
-
-    term :: String -> Either String Term
-    term "autumn" = pure HT
-    term "spring" = pure VT
-    term x        = Left $ "Can not parse Term from: " <> x
 
 writeProgram :: Program -> String
 writeProgram (Program EngD  _)   = "d"

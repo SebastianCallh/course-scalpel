@@ -5,9 +5,9 @@ module CourseScalpel.Program
   ( Program (..)
   , Slug (..)
   , Code (..)
-  , supportedPrograms
   , parseSlug
   , fromSlug
+  , slugToText
   , engD
   , engU
   , engI
@@ -24,6 +24,7 @@ module CourseScalpel.Program
   , engTB
   , engDPU
   , engKB
+  , supportedPrograms
   ) where
 
 import           Test.QuickCheck               (Arbitrary, arbitrary, oneof)
@@ -68,6 +69,43 @@ data Code
   | EngDPU       -- Design och produktutveckling
   | EngKB        -- Kemisk biologi
   deriving (Show, Read, Eq, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
+
+{-instance HasText Code where
+  toText EngD    = "D"
+  toText EngU    = "U"
+  toText EngI    = "I"
+  toText EngIInt = "Iint"
+  toText EngIT   = "IT"
+  toText EngY    = "Y"
+  toText EngYInt = "YInt"
+  toText EngMed  = "Med"
+  toText EngED   = "ED"
+  toText EngMT   = "MT"
+  toText EngKTS  = "KTS"
+  toText EngM    = "M"
+  toText EngEMM  = "EMM"
+  toText EngTB   = "TB"
+  toText EngDPU  = "DPU"
+  toText EngKB   = "KB"
+
+  fromText "D"    = pure EngD
+  fromText "U"    = pure EngU
+  fromText "I"    = pure EngI
+  fromText "Iint" = pure EngIInt
+  fromText "IT"   = pure EngIT
+  fromText "Y"    = pure EngY
+  fromText "YInt" = pure EngYInt
+  fromText "Med"  = pure EngMed
+  fromText "ED"   = pure EngED
+  fromText "MT"   = pure EngMT
+  fromText "KTS"  = pure EngKTS
+  fromText "M"    = pure EngM
+  fromText "EMM"  = pure EngEMM
+  fromText "TB"   = pure EngTB
+  fromText "DPU"  = pure EngDPU
+  fromText "KB"   = pure EngKB
+  fromText x      = parseError x "Program Slug"
+-}
 
 instance Arbitrary Code where
   arbitrary = genericArbitrary
@@ -117,6 +155,24 @@ parseSlug "6CDPU" = pure P6CDPU -- DPU
 parseSlug "6CTBI" = pure P6CTBI -- TB
 parseSlug "6CKEB" = pure P6CKEB -- KB
 parseSlug x       = parseError x "ProgramSlug"
+
+slugToText :: Slug -> Text
+slugToText P6CDDD = "6CDDD"
+slugToText P6CMJU = "6CMJU"
+slugToText P6CIII = "6CIII"
+slugToText P6CIEI = "6CIEI"
+slugToText P6CITE = "6CITE"
+slugToText P6CYYY = "6CYYY"
+slugToText P6CYYI = "6CYYI"
+slugToText P6CMED = "6CMED"
+slugToText P6CMEN = "6CMEN"
+slugToText P6CIEN = "6CIEN"
+slugToText P6CKTS = "6CKTS"
+slugToText P6CMMM = "6CMMM"
+slugToText P6CEMM = "6CEMM"
+slugToText P6CDPU = "6CDPU"
+slugToText P6CTBI = "6CTBI"
+slugToText P6CKEB = "6CKEB"
 
 fromSlug :: Slug -> Program
 fromSlug P6CDDD = engD    -- D

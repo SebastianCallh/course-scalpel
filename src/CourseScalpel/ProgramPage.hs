@@ -3,6 +3,7 @@
 
 module CourseScalpel.ProgramPage
   ( ProgramPage (..)
+  , MonadProgramPage (..)
   , SpecializationSection (..)
   , Content (..)
   , contentScraper
@@ -31,11 +32,13 @@ import           CourseScalpel.Web         (Url (..), scrapeError)
 -- | A program page like the following
 --   https://liu.se/studieinfo/program/6ctbi
 data ProgramPage = ProgramPage
-  { programPageCode            :: !Text
-  , programPageName            :: !Text
+  { programPageName            :: !Text
   , programPageSpecializations :: ![SpecializationSection]
   } deriving (Show, Eq)
 
+class Monad m => MonadProgramPage m where
+  scrapeProgramPage :: Url -> m ProgramPage
+  
 data Error
   = ParseError   Text Message
   | NetworkError Url  Message
@@ -48,7 +51,7 @@ instance Pretty Error where
     <> pretty msg
 
   pretty (NetworkError url msg)
-    =  pretty ("Parse error: " :: Text)
+    =  pretty ("Network error: " :: Text)
     <> pretty url
     <> pretty msg
 
@@ -65,10 +68,8 @@ networkError url msg = Failure $ [NetworkError url msg]
 scrape :: (HasError m, MonadIO m) => Url -> m ProgramPage
 scrape url = do
   content <- scrapeContent url
-  let eUrlCode = getUrlCode <$> parseUrlCode url
   let eProgramPage = ProgramPage
-        <$> eUrlCode
-        <*> (contentName  <$> content)
+        <$> (contentName  <$> content)
         <*> (contentSpecs <$> content)
 
   case toEither eProgramPage of
@@ -81,22 +82,6 @@ scrape url = do
       T.concat . flip map errors $ \case
       (ParseError   _ msg) -> msg
       (NetworkError _ msg) -> msg
-      
-
-
-newtype UrlCode = UrlCode { getUrlCode :: Text }
-
---parseUrlCode :: HasError m => Url -> m UrlCode
-parseUrlCode :: Url -> Result UrlCode
-parseUrlCode (Url x) =
-  either (const $ parseError x "UrlCode") pure $
-    MP.parse parser "" $ T.strip x
-  where
-    parser :: Parser UrlCode
-    parser = do
-      _    <- string "https://liu.se/studieinfo/program/"
-      code <- some alphaNumChar
-      pure . UrlCode $ T.pack code
 
 data Content = Content
   { contentName  :: !Text
@@ -150,9 +135,6 @@ data SpecializationSection = SpecializationSection
   { specSecSpec :: !Course.Specialization
   , specSecUrls :: ![Url]
   } deriving (Show, Eq)
-
-newtype ProgramPageUrl = ProgramPageUrl { _getProgramPageUrl :: Url }
-  deriving (Show, Eq)
 
 planScraper :: Scraper Text (Result Plan)
 planScraper = do

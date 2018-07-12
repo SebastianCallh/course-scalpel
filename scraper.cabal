@@ -26,11 +26,11 @@ executable course-scalpel-cli
                      , mtl
                      , optparse-applicative
                      , prettyprinter
+                     , split
                      , scalpel
                      , text
                      , time
   other-modules:       CourseScalpel.Cli
-                     , CourseScalpel.Cli.Internal
                        
 library
   hs-source-dirs:      src
@@ -61,12 +61,13 @@ library
                      , validation
   exposed-modules:     CourseScalpel
                      , CourseScalpel.App
+                     , CourseScalpel.Course
                      , CourseScalpel.CoursePage
                      , CourseScalpel.Error
                      , CourseScalpel.Parsing
-                     , CourseScalpel.ProgramPage
-                     , CourseScalpel.Course
                      , CourseScalpel.Program
+                     , CourseScalpel.ProgramPage
+                     , CourseScalpel.Time
                      , CourseScalpel.Web
                      , CourseScalpel.Web.Url
   default-language:    Haskell2010

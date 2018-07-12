@@ -355,3 +355,27 @@ spec =
             expected = parseError input "Hours"
             actual   = CoursePage.parseTime input :: Either AppError CoursePage.Time
         actual `shouldBe` expected
+
+      describe "parseHeader" $ do
+        it "parses course name with comma in it" $ do
+          let input    = "Ingenjörsprofessionalism, del 1, 1 hp (TDDD70)"
+              expected = Right CoursePage.Header
+                { headerCredits = Course.Credits 1
+                , headerCode    = "TDDD70"
+                , headerName    = "Ingenjörsprofessionalism, del 1"
+                }
+
+              actual   = CoursePage.parseHeader input
+          actual `shouldBe` expected
+
+        it "parses course name without comma in it" $ do
+          let input    = "Diskret matematik, 6 hp (TATA65)"
+              expected = Right CoursePage.Header
+                { headerCredits = Course.Credits 6
+                , headerCode    = "TATA65"
+                , headerName    = "Diskret matematik"
+                }
+
+              actual   = CoursePage.parseHeader input
+          actual `shouldBe` expected
+

@@ -2,6 +2,7 @@ module CourseScalpel
   ( ScrapeProgramRes (..)
   , ScrapeCourseRes (..)
   , CourseScalpelRunner
+  , Term (..)
   , scrapeProgram
   , scrapeCourse
   , runCourseScalpel
@@ -11,32 +12,32 @@ module CourseScalpel
 import           Control.Monad.IO.Class    (MonadIO)
 import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
-import qualified Data.Text                 as T
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
 
-import           CourseScalpel.App         (App, runApp, Config (..))
+import           CourseScalpel.App         (App, Config (..), runApp)
 import           CourseScalpel.Course      (Course)
+import CourseScalpel.Program (Program (..))
+import qualified CourseScalpel.Program as Program
 import qualified CourseScalpel.CoursePage  as CoursePage
+import           CourseScalpel.CoursePage (MonadCoursePage (..), Term (..))
 import           CourseScalpel.Error       (AppError, HasError)
-import           CourseScalpel.Program     (Program (..))
 import qualified CourseScalpel.ProgramPage as ProgramPage
+import           CourseScalpel.ProgramPage (MonadProgramPage (..))
 import           CourseScalpel.Web         (Url (..))
 
 data ScrapeProgramRes
-  = ScrapeProgramRes         [AppError] [Course]
+  = ScrapeProgramRes          [Course]
   | ScrapeProgramNetworkError AppError
 
 instance Pretty ScrapeProgramRes where
   pretty (ScrapeProgramNetworkError err)
     =  "Network error: "
     <> pretty err
-    
-  pretty (ScrapeProgramRes errs listCourses)
+
+  pretty (ScrapeProgramRes courses)
     = "Program scraped! "
-    <> (pretty $ length listCourses)
-    <> " courses were scraped successfully and "
-    <> (pretty $ length errs)
-    <> " failed."
+    <> (pretty $ length courses)
+    <> " courses were scraped successfully."
 
 type CourseScalpelRunner a = App a -> IO (Either AppError a)
 
@@ -46,18 +47,23 @@ runCourseScalpel = runApp
 mkConfig :: FilePath -> Config
 mkConfig = Config
 
-scrapeProgram :: forall m. (MonadIO m, HasError m) => Program -> m ScrapeProgramRes
+scrapeProgram
+  :: forall m
+  . (MonadCoursePage m, MonadProgramPage m,
+     MonadIO m, HasError m)
+  => Program
+  -> m ScrapeProgramRes
 scrapeProgram program = do
-  programPage <- ProgramPage.scrape $ programToUrl program
-  let coursePages = CoursePage.scrape <$> ProgramPage.courseUrls programPage
-  let courseEs    = fmap CoursePage.toCourse <$> coursePages :: [m Course]
-  ScrapeProgramRes [] <$> sequence courseEs
-  
-  where
-    programToUrl :: Program -> Url
-    programToUrl =
-      Url . (<>) "https://liu.se/studieinfo/program/" .
-      T.tail . T.pack . show . programSlug
+  let url = Url $ "https://liu.se/studieinfo/program/"
+            <> (Program.slugToText . programSlug $ program)
+        
+  programPage <- scrapeProgramPage url
+  coursePages <- traverse scrapeCoursePage (ProgramPage.courseUrls programPage)
+  let courses = CoursePage.toCourse <$> coursePages
+  pure $ ScrapeProgramRes courses
+--  liftIO $ putStrLn . show $ pretty programPage
+--  liftIO $ putStrLn . show $ pretty coursePage
+--  
 
 data ScrapeCourseRes
   = ScrapeCourseSuccess      Course
@@ -68,19 +74,20 @@ instance Pretty ScrapeCourseRes where
   pretty (ScrapeCourseSuccess      course)
     =  "Course scraped: "
     <> pretty course
-    
   pretty (ScrapeCourseParseError   err)
     =  "Parsing error: "
     <> pretty err
-    
   pretty (ScrapeCourseNetworkError err)
     =  "Network error: "
     <> pretty err
 
-scrapeCourse :: forall m. (MonadIO m, HasError m) => Text -> m ScrapeCourseRes
+type CourseCode = Text
+
+scrapeCourse
+  :: forall m
+  . (MonadCoursePage m, MonadIO m, HasError m)
+  => CourseCode
+  -> m ScrapeCourseRes
 scrapeCourse code = do
-  coursePage <- CoursePage.scrape $ courseCodeToUrl code
+  coursePage <- scrapeCoursePage . Url $ "https://liu.se/studieinfo/kurs/" <> code
   pure . ScrapeCourseSuccess $ CoursePage.toCourse coursePage
-  where
-    courseCodeToUrl :: Text -> Url
-    courseCodeToUrl = Url . (<>) "https://liu.se/studieinfo/kurs/"    

@@ -1,8 +1,8 @@
 { mkDerivation, aeson, base, containers, either, ghcid, hlint
 , hspec, HUnit, megaparsec, monad-logger, mtl, optparse-applicative
 , parser-combinators, prettyprinter, QuickCheck
-, quickcheck-arbitrary-adt, safe, scalpel, stdenv, text, time
-, validation
+, quickcheck-arbitrary-adt, safe, scalpel, split, stdenv, text
+, time, validation
 }:
 mkDerivation {
   pname = "course-scalpel";
@@ -13,15 +13,15 @@ mkDerivation {
   libraryHaskellDepends = [
     aeson base containers either hlint hspec HUnit megaparsec
     monad-logger mtl parser-combinators prettyprinter QuickCheck
-    quickcheck-arbitrary-adt safe scalpel text validation
+    quickcheck-arbitrary-adt safe scalpel split text validation
   ];
   executableHaskellDepends = [
-    base containers monad-logger mtl optparse-applicative scalpel text
-    time
+    base containers monad-logger mtl optparse-applicative prettyprinter
+    scalpel text time
   ];
   executableToolDepends = [ ghcid ];
   testHaskellDepends = [
-    base hspec HUnit mtl QuickCheck scalpel text
+    base hspec HUnit mtl QuickCheck scalpel text validation
   ];
   homepage = "https://github.com/sebastiancallh/course-scalpel#readme";
   license = stdenv.lib.licenses.bsd3;
