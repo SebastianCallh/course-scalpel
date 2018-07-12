@@ -447,9 +447,11 @@ parseTime x = either (const $ parseError x "Hours") pure $
       parser :: Parser Time
       parser = do
         scheduled <- fmap read $ string "Preliminär schemalagd tid: "
+          *> (optional $ char '-')
           *> some digitChar
           <* string " h <br>"
         selfStudy <- fmap read $ string "Rekommenderad självstudietid: "
+          *> (optional $ char '-')
           *> some digitChar
           <* string " h"
         pure Time

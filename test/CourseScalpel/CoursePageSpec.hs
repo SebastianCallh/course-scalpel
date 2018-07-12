@@ -350,6 +350,14 @@ spec =
             actual   = CoursePage.parseTime input
         actual `shouldBe` expected
 
+      -- This is a bug in some course markup, where
+      -- it simply has a minus sign in front of the course time.
+      it "parses incorrect markup with a minus sign" $ do
+        input <- readFile "test/markup/hours-minus-sign.html"
+        let expected = Right $ CoursePage.Time 5 32
+            actual   = CoursePage.parseTime input
+        actual `shouldBe` expected
+
       it "fails on non parsable input" $ do
         let input    = "not hours"
             expected = parseError input "Hours"
