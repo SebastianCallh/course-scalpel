@@ -36,7 +36,7 @@ instance Pretty ScrapeProgramRes where
 
   pretty (ScrapeProgramRes courses)
     = "Program scraped! "
-    <> (pretty $ length courses)
+    <> pretty (length courses)
     <> " courses were scraped successfully."
 
 type CourseScalpelRunner a = App a -> IO (Either AppError a)
@@ -55,15 +55,12 @@ scrapeProgram
   -> m ScrapeProgramRes
 scrapeProgram program = do
   let url = Url $ "https://liu.se/studieinfo/program/"
-            <> (Program.slugToText . programSlug $ program)
+        <> (Program.slugToText $ programSlug program)
         
   programPage <- scrapeProgramPage url
-  coursePages <- traverse scrapeCoursePage (ProgramPage.courseUrls programPage)
-  let courses = CoursePage.toCourse <$> coursePages
+  let coursePages = scrapeCoursePage <$> ProgramPage.courseUrls programPage
+  courses <- traverse (fmap CoursePage.toCourse) coursePages
   pure $ ScrapeProgramRes courses
---  liftIO $ putStrLn . show $ pretty programPage
---  liftIO $ putStrLn . show $ pretty coursePage
---  
 
 data ScrapeCourseRes
   = ScrapeCourseSuccess      Course
@@ -71,10 +68,10 @@ data ScrapeCourseRes
   | ScrapeCourseNetworkError AppError
 
 instance Pretty ScrapeCourseRes where
-  pretty (ScrapeCourseSuccess      course)
+  pretty (ScrapeCourseSuccess course)
     =  "Course scraped: "
     <> pretty course
-  pretty (ScrapeCourseParseError   err)
+  pretty (ScrapeCourseParseError err)
     =  "Parsing error: "
     <> pretty err
   pretty (ScrapeCourseNetworkError err)

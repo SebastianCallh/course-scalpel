@@ -19,7 +19,7 @@ instance Parseable Urls where
 -}
 
 newtype Url = Url { getUrl :: Text }
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 instance Pretty Url where
   pretty (Url url) = pretty url

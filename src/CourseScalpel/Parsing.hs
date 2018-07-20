@@ -10,7 +10,8 @@ module CourseScalpel.Parsing
 
 import           CourseScalpel.Error (AppError (..), HasError, appError)
 import           Data.Text           (Text)
-import           Text.Megaparsec     (ErrorFancy, Parsec)
+import           Data.Void           (Void)
+import           Text.Megaparsec     (Parsec)
 
 takeMay :: Int -> [a] -> Maybe [a]
 takeMay n as
@@ -21,7 +22,7 @@ takeMay n as
 
 --- Parsing ---
 
-type Parser = Parsec (ErrorFancy Text) Text
+type Parser = Parsec Void Text
 
 class Parseable a where
   parse    :: HasError m => Text -> m a

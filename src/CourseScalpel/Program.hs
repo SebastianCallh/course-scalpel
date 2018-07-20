@@ -27,17 +27,14 @@ module CourseScalpel.Program
   , supportedPrograms
   ) where
 
+import           Data.Aeson                    (FromJSON, ToJSON)
+import           Data.Data                     (Typeable)
+import           Data.Semigroup                ((<>))
+import           Data.Text                     (Text)
+import           GHC.Generics                  (Generic)
 import           Test.QuickCheck               (Arbitrary, arbitrary, oneof)
 import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
                                                 genericArbitrary)
-
-import           Data.Aeson                    (FromJSON, ToJSON)
-import           Data.Data                     (Typeable)
-import           Data.Text                     (Text)
-import           GHC.Generics                  (Generic)
-
-import           CourseScalpel.Error           (HasError)
-import           CourseScalpel.Parsing         (parseError)
 
 --- Program ---
 
@@ -137,7 +134,7 @@ data Slug
 instance Arbitrary Slug where
   arbitrary = genericArbitrary
 
-parseSlug :: HasError m => Text -> m Slug
+parseSlug :: Text -> Either Text Slug
 parseSlug "6CDDD" = pure P6CDDD -- D
 parseSlug "6CMJU" = pure P6CMJU -- U
 parseSlug "6CIII" = pure P6CIII -- I
@@ -154,7 +151,9 @@ parseSlug "6CEMM" = pure P6CEMM -- EMM
 parseSlug "6CDPU" = pure P6CDPU -- DPU
 parseSlug "6CTBI" = pure P6CTBI -- TB
 parseSlug "6CKEB" = pure P6CKEB -- KB
-parseSlug x       = parseError x "ProgramSlug"
+parseSlug x       =
+  Left $ "Could not parse "
+  <> x <> " as ProgramSlug."
 
 slugToText :: Slug -> Text
 slugToText P6CDDD = "6CDDD"

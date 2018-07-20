@@ -104,7 +104,7 @@ spec =
 
       it "parses multiple blocks correctly" $ do
         let input    = "3/4"
-            actual   = CoursePage.parseBlocks input :: Either AppError [Course.Block]
+            actual   = CoursePage.parseBlocks input
             expected = Right
               [ Course.BlockThree
               , Course.BlockFour
@@ -142,13 +142,13 @@ spec =
               , Course.AreaTechnicalPhysics
               , Course.AreaOther
               ]
-            actual = CoursePage.parseAreas input :: Either AppError [Course.Area]
+            actual = CoursePage.parseAreas input
         actual `shouldBe` expected
 
       it "fails to parse non-valid values" $ do
         let input    = "not an area"
-            actual   = CoursePage.parseArea input :: Either AppError Course.Area
-            expected = parseError input "Area"
+            actual   = CoursePage.parseArea input
+            expected = CoursePage.couldNotParse input "Area"
         actual `shouldBe` expected
 
     describe "parseExaminations" $ do
@@ -190,8 +190,8 @@ spec =
 
       it "failes to parse" $ do
         let input    = "not an examination"
-            actual   = CoursePage.parseExamination input :: Either AppError Course.Examination
-            expected = parseError input "Examination"
+            actual   = CoursePage.parseExamination input
+            expected = CoursePage.couldNotParse input "Examination"
         actual `shouldBe` expected
 
       it "parses expected markup" $ do
@@ -225,7 +225,7 @@ spec =
       it "returns empty list on no urls" $ do
         let input    = ""
             expected = Right []
-            actual   = CoursePage.parseUrls input :: Either AppError [Url]
+            actual   = CoursePage.parseUrls input
         actual `shouldBe` expected
 
     describe "parseFields" $ do
@@ -251,15 +251,15 @@ spec =
 
       it "fails to parse illegal values" $ do
         let input    = "not a field"
-            expected = sequence [parseError input "Field"]
-            actual   = CoursePage.parseFields input :: Either AppError [Course.Field]
+            expected = sequenceA [CoursePage.couldNotParse input "Field"]
+            actual   = CoursePage.parseFields input
         actual `shouldBe` expected
 
     describe "parseBlock" $ do
       it "fails to parse invalid block" $ do
         let input    = "not a block"
-            expected = sequence [parseError input "Block"]
-            actual   = CoursePage.parseBlocks input :: Either AppError [Course.Block]
+            expected = sequenceA [CoursePage.couldNotParse input "Block"]
+            actual   = CoursePage.parseBlocks input
         actual `shouldBe` expected
 
     describe "parseInstitution" $ do
@@ -299,8 +299,8 @@ spec =
 
       it "fails to parse non-valid values" $ do
         let input    = "not an institution"
-            expected = parseError input "Institution"
-            actual   = CoursePage.parseInstitution input :: Either AppError Course.Institution
+            expected = CoursePage.couldNotParse input "Institution"
+            actual   = CoursePage.parseInstitution input
         actual `shouldBe` expected
 
 
@@ -322,8 +322,8 @@ spec =
 
       it "fails to parse non-valid values" $ do
         let input    = "not a gradescale"
-            expected = parseError input "Grading"
-            actual   = CoursePage.parseGrading input :: Either AppError Course.Grading
+            expected = CoursePage.couldNotParse input "Grading"
+            actual   = CoursePage.parseGrading input
         actual `shouldBe` expected
 
     describe "parseCredits" $ do
@@ -344,7 +344,13 @@ spec =
         (parse input :: Either AppError Course.Credits) `shouldBe` parseError input "Credits"
 
     describe "parse CourseTime" $ do
-      it "parses correct markup" $ do
+      it "parses markup with padding" $ do
+        input <- readFile "test/markup/hours-padding.html"
+        let expected = Right $ CoursePage.Time 800 900
+            actual   = CoursePage.parseTime input
+        actual `shouldBe` expected
+
+      it "parses markup without padding" $ do
         input <- readFile "test/markup/hours.html"
         let expected = Right $ CoursePage.Time 800 900
             actual   = CoursePage.parseTime input
@@ -353,15 +359,15 @@ spec =
       -- This is a bug in some course markup, where
       -- it simply has a minus sign in front of the course time.
       it "parses incorrect markup with a minus sign" $ do
-        input <- readFile "test/markup/hours-minus-sign.html"
+        let input = "Preliminary scheduled hours: 32 h <br>Recommended self-study hours: -5 h"
         let expected = Right $ CoursePage.Time 5 32
             actual   = CoursePage.parseTime input
         actual `shouldBe` expected
 
       it "fails on non parsable input" $ do
         let input    = "not hours"
-            expected = parseError input "Hours"
-            actual   = CoursePage.parseTime input :: Either AppError CoursePage.Time
+            expected = CoursePage.couldNotParse input "Hours"
+            actual   = CoursePage.parseTime input
         actual `shouldBe` expected
 
       describe "parseHeader" $ do
@@ -387,3 +393,9 @@ spec =
               actual   = CoursePage.parseHeader input
           actual `shouldBe` expected
 
+    describe "parseSubjects" $ do
+      it "parses subjects with a comma in the name" $ do
+        let input    = "Ledarskap, organisation och styrning"
+            expected = Right [Course.SubjectLeadershipOrganisation]
+            actual   = CoursePage.parseSubjects input
+        actual `shouldBe` expected

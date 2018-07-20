@@ -9,6 +9,8 @@ module CourseScalpel.App
   ) where
 
 import           Control.Monad.Except      (ExceptT, MonadError, runExceptT)
+import           Control.Monad.IO.Class    (liftIO)
+import qualified Data.Text                 as T
 
 import           Control.Monad.Logger      (LoggingT, MonadLogger,
                                             runFileLoggingT)
@@ -16,9 +18,10 @@ import           Control.Monad.Reader      (MonadIO, MonadReader, ReaderT,
                                             runReaderT)
 import           CourseScalpel.CoursePage  (MonadCoursePage (..))
 import qualified CourseScalpel.CoursePage  as CoursePage
-import           CourseScalpel.Error       (AppError)
+import           CourseScalpel.Error       (AppError (..))
 import           CourseScalpel.ProgramPage (MonadProgramPage (..))
 import qualified CourseScalpel.ProgramPage as ProgramPage
+import           CourseScalpel.Web         (scrapeError)
 
 data Config = Config
   { configLogFile :: FilePath
@@ -31,7 +34,9 @@ newtype App a = App { unApp :: ExceptT AppError (ReaderT Config (LoggingT IO)) a
             MonadError AppError, MonadReader Config, MonadLogger)
 
 instance MonadCoursePage App where
-  scrapeCoursePage = CoursePage.scrape
+  scrapeCoursePage url =
+    liftIO (CoursePage.scrape url) >>=
+    either (scrapeError url . T.pack . show) pure
 
 instance MonadProgramPage App where
   scrapeProgramPage = ProgramPage.scrape

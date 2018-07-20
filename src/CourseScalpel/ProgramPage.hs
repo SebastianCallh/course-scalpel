@@ -145,8 +145,8 @@ planScraper = do
     urlAttrs <- chroots ("div" @: [hasClass "specialization"]) $
       attrs "href" "a"
 
-    let specs = fmap (parseSpecialization) specAttrs
-    let urls   = traverse (pure . Url) <$> urlAttrs
+    let specs    = parseSpecialization   <$> specAttrs
+    let urls     = traverse (pure . Url) <$> urlAttrs
     let specSecs = sequenceA $ zipWith (liftA2 SpecializationSection) specs urls
     pure $ Plan <$> specSecs
 

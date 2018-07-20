@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -13,6 +14,7 @@ module CourseScalpel.CoursePage
   , Blocks (..)
   , Time (..)
   , Term (..)
+  , couldNotParse
   , parseAreas
   , parseArea
   , parseBlocks
@@ -21,6 +23,7 @@ module CourseScalpel.CoursePage
   , parseExamination
   , parseFields
   , parseGrading
+  , parseSubjects
   , parseTime
   , parseUrls
   , parseInstitution
@@ -32,10 +35,8 @@ module CourseScalpel.CoursePage
   , toCourse
   ) where
 
-import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Data.Aeson                (FromJSON, ToJSON)
 import           Data.Char                 (isDigit)
-import           Data.Data                 (Typeable)
 import           Data.Map                  (Map)
 import qualified Data.Map                  as M
 import           Data.Semigroup            ((<>))
@@ -50,10 +51,9 @@ import           Text.Megaparsec.Char
 
 import           CourseScalpel.Course      (Course (..))
 import qualified CourseScalpel.Course      as Course
-import           CourseScalpel.Error       (HasError)
-import           CourseScalpel.Parsing     (Parser, parseError, takeMay)
+import           CourseScalpel.Parsing     (takeMay)
 import qualified CourseScalpel.Program     as Program
-import           CourseScalpel.Web         (Url (..), scrapeError)
+import           CourseScalpel.Web         (Url (..))
 
 data CoursePage = CoursePage
   { coursePageHeader   :: !Header
@@ -67,14 +67,34 @@ data Term = HT | VT
 class Monad m => MonadCoursePage m where
   scrapeCoursePage :: Url -> m CoursePage
 
-scrape :: (HasError m, MonadIO m) => Url -> m CoursePage
-scrape url =
-  liftIO (scrapeURL (T.unpack $ getUrl url) scraper)
-  >>= maybe errorOut id
-  where
-    errorOut = scrapeError url "CoursePage scraper failed."
+data Error
+  = ParseError Text Text
+  | NetworkError Url
+  | UnsupportedProgram Text
+  deriving (Eq, Ord)
 
-scraper :: HasError m => Scraper Text (m CoursePage)
+instance Show Error where
+  show = showErrorComponent
+  
+type ParseResult = Either Error
+
+scrape :: Url -> IO (ParseResult CoursePage)
+scrape url =
+  scrapeURL (T.unpack $ getUrl url) scraper >>= \case
+    Nothing          -> pure . Left $ NetworkError url
+    Just eCoursePage -> pure eCoursePage
+
+type Parser = Parsec Error Text
+
+instance ShowErrorComponent Error where
+  showErrorComponent (ParseError txt typ) =
+    T.unpack $ "Could not parse '" <> txt <> "' as " <> typ <> "."
+  showErrorComponent (UnsupportedProgram slug) =
+    T.unpack $ "No supported program for slug " <> slug <> "."
+  showErrorComponent (NetworkError url) =
+    T.unpack $ "Could not connect to " <> getUrl url <> "."
+
+scraper :: Scraper Text (ParseResult CoursePage)
 scraper = do
   courseHeader   <- headerScraper
   coursePrograms <- programsScraper
@@ -111,20 +131,20 @@ data Header = Header
   , headerName    :: !Text
   } deriving (Show, Eq)
 
-
 {- A header can look like "Ingenjörsprofessionalism, del 1, 1 hp (TDDD70)"
    so by reversing and breaking on the comma (over here --^) the problem
    of parsing through the first comma is avoided. -}
-parseHeader :: HasError m => Text -> m Header
+parseHeader :: Text -> ParseResult Header
 parseHeader x = do
   let (credCodePart, namePart) = T.breakOn "," $ T.reverse x
-  let eCredCode = MP.parse credCodeParser "" $ T.reverse credCodePart
-  let eName     = MP.parse nameParser     "" $ T.reverse namePart
+  let eCredCode = MP.parse credCodeParser  ""  $ T.reverse credCodePart
+  let eName     = MP.parse nameParser      ""  $ T.reverse $ T.tail namePart
   let eHeader   = uncurry Header <$> eCredCode <*> eName
-  either errorOut pure eHeader
+  either hoistError pure eHeader
 
   where
-    errorOut err = parseError x $ "Could not parse CoursePageHeader: " <> T.pack (show err)
+    hoistError :: MP.ParseError Char Error -> Either Error Header
+    hoistError = const $ couldNotParse x "Course Page Header"
 
     credCodeParser :: Parser (Course.Credits, Text)
     credCodeParser = do
@@ -147,7 +167,7 @@ instance Pretty Header where
     ", "              <>
     pretty headerCredits
 
-headerScraper :: HasError m => Scraper Text (m Header)
+headerScraper :: Scraper Text (ParseResult Header)
 headerScraper =
   chroot ("div" @: [hasClass "main-container"]) $ chroot "header" $ do
     txt <- text "h1"
@@ -155,7 +175,7 @@ headerScraper =
 
 {- Looks like the following so only the
    number in the beginning is relevant: "1 (HT 2018)". -}
-parseSemester :: HasError m => Text -> m Course.Semester
+parseSemester :: Text -> ParseResult Course.Semester
 parseSemester x = parse' . T.strip $ T.takeWhile (not . (==) '(') x
   where
     parse' "1"  = pure Course.SemesterOne
@@ -168,14 +188,14 @@ parseSemester x = parse' . T.strip $ T.takeWhile (not . (==) '(') x
     parse' "8"  = pure Course.SemesterEight
     parse' "9"  = pure Course.SemesterNine
     parse' "10" = pure Course.SemesterTen
-    parse' _    = parseError x "CoursePageSemester"
+    parse' _    = couldNotParse x "CoursePageSemester"
 
 --- Area ---
 
-parseAreas :: HasError m => Text -> m [Course.Area]
+parseAreas :: Text -> ParseResult [Course.Area]
 parseAreas = traverse parseArea . T.splitOn ","
 
-parseArea :: HasError m => Text -> m Course.Area
+parseArea :: Text -> ParseResult Course.Area
 parseArea "Till\228mpad matematik"        = pure Course.AreaAppliedMaths
 parseArea "Datavetenskap"                 = pure Course.AreaComputerScience
 parseArea "Datateknik"                    = pure Course.AreaComputerEngineering
@@ -195,93 +215,79 @@ parseArea "Teknisk fysik"                 = pure Course.AreaTechnicalPhysics
 parseArea "Medieteknik"                   = pure Course.AreaMediaEngineering
 parseArea "\214vriga \228mnen"            = pure Course.AreaOther
 parseArea "se beslutade huvudområden"     = pure Course.AreaOther
-parseArea x                               = parseError x "Area"
+parseArea x                               = couldNotParse x "Area"
 
 --- Blocks ---
 
 newtype Blocks = Blocks { getBlocks :: [Course.Block] }
   deriving (Show, Eq) -- (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
 
-parseBlocks :: HasError m => Text -> m [Course.Block]
+parseBlocks :: Text -> ParseResult [Course.Block]
 parseBlocks x =
     if null blockChars
-    then parseError x "Block"
+    then couldNotParse x "Block"
     else traverse parseBlock blockChars
     where
       blockChars = T.chunksOf 1 $ T.filter (\c -> isDigit c || c == '-') x
 
-parseBlock :: HasError m => Text -> m Course.Block
+parseBlock :: Text -> ParseResult Course.Block
 parseBlock "1" = pure Course.BlockOne
 parseBlock "2" = pure Course.BlockTwo
 parseBlock "3" = pure Course.BlockThree
 parseBlock "4" = pure Course.BlockFour
 parseBlock "-" = pure Course.BlockNone
-parseBlock  x  = parseError x "Block"
+parseBlock  x  = couldNotParse x "Block"
 
 --- Period ---
 
-parsePeriods :: HasError m => Text -> m [Course.Period]
+parsePeriods :: Text -> ParseResult [Course.Period]
 parsePeriods = traverse (parsePeriod . T.strip) . T.splitOn ","
 
-parsePeriod :: HasError m => Text -> m Course.Period
+parsePeriod :: Text -> ParseResult Course.Period
 parsePeriod "0" = pure Course.PeriodOne
 parsePeriod "1" = pure Course.PeriodOne
 parsePeriod "2" = pure Course.PeriodTwo
-parsePeriod x   = parseError x "CoursePagePeriod"
+parsePeriod x   = couldNotParse x "CoursePagePeriod"
 
 --- Importance ---
 
-parseImportance :: HasError m => Text -> m Course.Importance
+parseImportance :: Text -> ParseResult Course.Importance
 parseImportance "v"   = pure Course.V
 parseImportance "o"   = pure Course.O
 parseImportance "f"   = pure Course.F
 parseImportance "o/v" = pure Course.OV
-parseImportance  x    = parseError x "CoursePageImportance"
+parseImportance  x    = couldNotParse x "CoursePageImportance"
 
 -- First table with class study-guide-table is the right one, currently.
 -- Drops first tr since it is header. Very brittle.
-programsScraper :: forall m. HasError m => Scraper Text (m [Course.CourseProgram])
+programsScraper :: Scraper Text (ParseResult [Course.CourseProgram])
 programsScraper =
   chroot ("table" @: [hasClass "study-guide-table"]) $ do
-    txts <- drop 1 <$> innerHTMLs "tr"
-    pure
-      . traverse hoistRes
-      . filter supportedProgram
-      . fmap parseCourseProgram
-      $ txts
+    sequenceA
+    . filter supportedProgram
+    . fmap parseCourseProgram
+    . drop 1
+    <$> innerHTMLs "tr"
 
   where
-    hoistRes
-      :: HasError m
-      => CourseProgramParseRes
-      -> m Course.CourseProgram
-    hoistRes (ParseSucceded courseProgram) = pure courseProgram
-    hoistRes (ParseFail     txt msg)       = parseError txt msg
-    hoistRes (UnsupportedProgram slugTxt)  = parseError slugTxt "Program not supported."
-
-    supportedProgram :: CourseProgramParseRes -> Bool
-    supportedProgram (UnsupportedProgram _) = False
-    supportedProgram _                      = True
+    supportedProgram :: ParseResult a -> Bool
+    supportedProgram (Left (UnsupportedProgram _)) = False
+    supportedProgram _                             = True
 
 --- CourseProgram ---
 
-data CourseProgramParseRes
-  = ParseSucceded      Course.CourseProgram
-  | ParseFail          Text Text
-  | UnsupportedProgram Text
-
-parseCourseProgram :: Text -> CourseProgramParseRes
+parseCourseProgram :: Text -> ParseResult Course.CourseProgram
 parseCourseProgram x = do
     let mFields    = scrapeStringLike x $ texts "td"
     let mSanFields = fmap sanitize <$> mFields
     case mSanFields >>= takeMay 8 of
-        Nothing   -> ParseFail x "Requires 8 td:s to be parsed."
+        Nothing   -> Left $ ParseError x "Requires 8 td:s to be parsed."
         Just [ slugTxt, _, semesterTxt
              , periodTxt, blockTxt, _, _
              , importanceTxt
              ]  ->
           case programFromSlug slugTxt of
-            Left _ -> UnsupportedProgram slugTxt
+            Left _ -> Left $ UnsupportedProgram slugTxt
             Right  program ->
               let eCourseProgram = Course.CourseProgram program
                     <$> (parseSemester semesterTxt)
@@ -289,12 +295,13 @@ parseCourseProgram x = do
                     <*> (parseBlocks blockTxt)
                     <*> (parseImportance importanceTxt)
               in case eCourseProgram of
-                Left err            -> ParseFail x $ T.pack $ show err
-                Right courseProgram -> ParseSucceded courseProgram
+                Left err            -> Left err
+                Right courseProgram -> pure courseProgram
 
-        _   -> ParseFail x "Could not parse as CourseProgram."
+        _   -> Left $ ParseError x "Could not parse as CourseProgram."
+
   where
-    programFromSlug :: HasError m => Text ->  m Program.Program
+    programFromSlug :: Text ->  Either Text Program.Program
     programFromSlug = fmap Program.fromSlug . Program.parseSlug
 
 --- Plan ---
@@ -314,17 +321,17 @@ data Plan = Plan
   , planTime          :: !Time
   } deriving (Show, Eq)
 
-planScraper :: forall m. HasError m => Scraper Text (m Plan)
+planScraper :: Scraper Text (ParseResult Plan)
 planScraper = do
   sections <- chroot ("section" @: [hasClass "studyguide-block"]) $
     chroots "div" $ do
       title   <- innerHTML "h3"
       content <- sanitize . snd . T.breakOnEnd "</h3>" <$> innerHTML "div"
       return (title, content)
-
   pure $ fromPageSections . M.fromList $ sections
+
   where
-    fromPageSections :: Map Text Text -> m Plan
+    fromPageSections :: Map Text Text -> ParseResult Plan
     fromPageSections sections = Plan
       <$> parseSection parseAreas         Nothing              "Huvudområde"
       <*> parseSection parseInstitution   Nothing              "Institution"
@@ -339,19 +346,19 @@ planScraper = do
       <*> parseSection parseUrls          (Just [])            "Kurshemsida och andra länkar"
       <*> parseSection parseTime          Nothing              "Undervisningstid"
       where
-        parseSection :: (Text -> m a) -> Maybe a -> Text -> m a
+        parseSection :: (Text -> ParseResult a) -> Maybe a -> Text -> ParseResult a
         parseSection parse def key =
           case M.lookup key sections of
             Nothing      -> maybe (makeError key) pure  def
             Just section -> parse section
 
-        makeError :: Text -> m a
-        makeError secKey = parseError
+        makeError :: Text -> ParseResult a
+        makeError secKey = couldNotParse
           ("Empty section " <> secKey) "CoursePagePlan"
 
 --- Institution ---
 
-parseInstitution :: HasError m => Text -> m Course.Institution
+parseInstitution :: Text -> ParseResult Course.Institution
 parseInstitution = parseInstitution' . T.strip
   where
     parseInstitution' "Matematiska institutionen" =
@@ -380,55 +387,87 @@ parseInstitution = parseInstitution' . T.strip
       pure Course.InstitutionITN
     parseInstitution' "Tekniska fakultetskansliet" =
       pure Course.InstitutionTekFak
-    parseInstitution' x = parseError x "Institution"
+    parseInstitution' x = couldNotParse x "Institution"
 
 --- Field ---
 
-parseFields :: HasError m => Text -> m [Course.Field]
+parseFields :: Text -> ParseResult [Course.Field]
 parseFields = traverse (parseField . T.strip) . T.splitOn ","
 
-parseField :: HasError m => Text -> m Course.Field
+parseField :: Text -> ParseResult Course.Field
 parseField "Humanistiska omr\229det"             = pure Course.FieldHumanities
 parseField "Medicinska omr\229det"               = pure Course.FieldMedicine
 parseField "Tekniska omr\229det"                 = pure Course.FieldTechnical
 parseField "Naturvetenskapliga omr\229det"       = pure Course.FieldScience
 parseField "Samh\228llsvetenskapliga omr\229det" = pure Course.FieldSociety
 parseField "Juridiska området"                   = pure Course.FieldLaw
-parseField x                                     = parseError x "Field"
+parseField x                                     = couldNotParse x "Field"
 
 --- Prerequisites ---
 
-parsePrerequisites :: HasError m => Text -> m (Maybe Course.Prerequisites)
+parsePrerequisites :: Text -> ParseResult (Maybe Course.Prerequisites)
 parsePrerequisites = pure . pure . Course.Prerequisites
 
 --- Subject ---
-parseSubjects :: HasError m => Text -> m [Course.Subject]
-parseSubjects = traverse parseSubject . T.splitOn ","
-
-parseSubject :: HasError m => Text -> m Course.Subject
-parseSubject "Datateknik"                           = pure Course.SubjectComputerScience
-parseSubject "Elektroteknik"                        = pure Course.SubjectElectrotechnics
-parseSubject "Milj\246v\229rd och milj\246skydd"    = pure Course.SubjectEnvironmentProtection
-parseSubject "Engelska"                             = pure Course.SubjectEnglish
-parseSubject "Franska"                              = pure Course.SubjectFrench
-parseSubject "Tyska"                                = pure Course.SubjectGerman
-parseSubject "Historia"                             = pure Course.SubjectHistory
-parseSubject "Informatik/Data- och systemvetenskap" = pure Course.SubjectInformatics
-parseSubject "Ledarskap, organisation och styrning" = pure Course.SubjectLeadershipOrganisation
-parseSubject "Ledarskap"                            = pure Course.SubjectLeadership
-parseSubject "Matematik"                            = pure Course.SubjectMaths
-parseSubject "Medie- o kommunikationsvetenskap"     = pure Course.SubjectMediaCommunication
-parseSubject "Industriell ekonomi och organisation" = pure Course.SubjectOrganisation
-parseSubject "\214vrigt inom medicin"               = pure Course.SubjectOtherMedicine
-parseSubject "\214vriga tekniska \228mnen"          = pure Course.SubjectOtherTechnical
-parseSubject "Fysik"                                = pure Course.SubjectPhysics
-parseSubject "Filosofi"                             = pure Course.SubjectPhilosophy
-parseSubject "Spanska"                              = pure Course.SubjectSpanish
-parseSubject "Elektronik"                           = pure Course.SubjectElectronics
-parseSubject "Övriga ämnen"                         = pure Course.SubjectOther
-parseSubject "Juridik och rättsvetenskap"           = pure Course.SubjectLaw
-parseSubject "Medieproduktion"                      = pure Course.SubjectMediaProduction
-parseSubject x = parseError x "Subject"
+parseSubjects :: Text -> ParseResult [Course.Subject]
+parseSubjects txt = do
+  let x = MP.parse subjects "" txt
+  either undefined pure x
+  where
+    subjects :: Parser [Course.Subject]
+    subjects = subject `sepBy` char ','
+    subject :: Parser Course.Subject
+    subject =
+      string "Datateknik"    *> pure Course.SubjectComputerScience <|> 
+      string "Elektroteknik" *> pure Course.SubjectElectrotechnics <|>
+      string "Milj\246v\229rd och milj\246skydd" *>
+        pure Course.SubjectEnvironmentProtection <|>
+      string "Engelska" *> pure Course.SubjectEnglish <|>
+      string "Franska"  *> pure Course.SubjectFrench <|>
+      string "Tyska" *> pure Course.SubjectGerman <|>
+      string "Historia" *> pure Course.SubjectHistory <|>
+      string "Informatik/Data- och systemvetenskap" *> pure Course.SubjectInformatics <|>
+      string "Ledarskap, organisation och styrning" *>
+        pure Course.SubjectLeadershipOrganisation <|>
+      string "Ledarskap" *> pure Course.SubjectLeadership <|>
+      string "Matematik" *> pure Course.SubjectMaths <|>
+      string "Medie- o kommunikationsvetenskap" *> pure Course.SubjectMediaCommunication <|>
+      string "Industriell ekonomi och organisation" *> pure Course.SubjectOrganisation <|>
+      string "\214vrigt inom medicin"               *> pure Course.SubjectOtherMedicine <|>
+      string "\214vriga tekniska \228mnen"          *> pure Course.SubjectOtherTechnical <|>
+      string "Fysik"                                *> pure Course.SubjectPhysics <|>
+      string "Filosofi"                             *> pure Course.SubjectPhilosophy <|>
+      string "Spanska"                              *> pure Course.SubjectSpanish <|>
+      string "Elektronik"                           *> pure Course.SubjectElectronics <|>
+      string "Övriga ämnen"                         *> pure Course.SubjectOther <|>
+      string "Juridik och rättsvetenskap"           *> pure Course.SubjectLaw <|>
+      string "Medieproduktion"                      *> pure Course.SubjectMediaProduction
+{-
+      parseSubject :: Text -> ParseResult Course.Subject
+      parseSubject "Datateknik"                           = pure Course.SubjectComputerScience
+      parseSubject "Elektroteknik"                        = pure Course.SubjectElectrotechnics
+      parseSubject "Milj\246v\229rd och milj\246skydd"    = pure Course.SubjectEnvironmentProtection
+      parseSubject "Engelska"                             = pure Course.SubjectEnglish
+      parseSubject "Franska"                              = pure Course.SubjectFrench
+      parseSubject "Tyska"                                = pure Course.SubjectGerman
+      parseSubject "Historia"                             = pure Course.SubjectHistory
+      parseSubject "Informatik/Data- och systemvetenskap" = pure Course.SubjectInformatics
+      parseSubject "Ledarskap, organisation och styrning" = pure Course.SubjectLeadershipOrganisation
+      parseSubject "Ledarskap"                            = pure Course.SubjectLeadership
+      parseSubject "Matematik"                            = pure Course.SubjectMaths
+      parseSubject "Medie- o kommunikationsvetenskap"     = pure Course.SubjectMediaCommunication
+      parseSubject "Industriell ekonomi och organisation" = pure Course.SubjectOrganisation
+      parseSubject "\214vrigt inom medicin"               = pure Course.SubjectOtherMedicine
+      parseSubject "\214vriga tekniska \228mnen"          = pure Course.SubjectOtherTechnical
+      parseSubject "Fysik"                                = pure Course.SubjectPhysics
+      parseSubject "Filosofi"                             = pure Course.SubjectPhilosophy
+      parseSubject "Spanska"                              = pure Course.SubjectSpanish
+      parseSubject "Elektronik"                           = pure Course.SubjectElectronics
+      parseSubject "Övriga ämnen"                         = pure Course.SubjectOther
+      parseSubject "Juridik och rättsvetenskap"           = pure Course.SubjectLaw
+      parseSubject "Medieproduktion"                      = pure Course.SubjectMediaProduction
+      parseSubject x = couldNotParse x "Subject"
+-}
 
 --- Time ---
 
@@ -438,19 +477,20 @@ parseSubject x = parseError x "Subject"
 data Time = Time
   { timeSelfStudy :: Word
   , timeScheduled :: Word
-  } deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  } deriving (Show, Read, Eq, Generic, FromJSON, ToJSON)
 
-parseTime :: HasError m => Text -> m Time
-parseTime x = either (const $ parseError x "Hours") pure $
-    MP.parse parser "" (T.strip x)
+parseTime :: Text -> ParseResult Time
+parseTime x =  
+  either (const $ couldNotParse x "Hours") pure $
+  MP.parse parser "" (T.strip x)
     where
       parser :: Parser Time
       parser = do
-        scheduled <- fmap read $ string "Preliminär schemalagd tid: "
+        scheduled <- fmap read $ prelTxt
           *> (optional $ char '-')
           *> some digitChar
           <* string " h <br>"
-        selfStudy <- fmap read $ string "Rekommenderad självstudietid: "
+        selfStudy <- fmap read $ recTxt
           *> (optional $ char '-')
           *> some digitChar
           <* string " h"
@@ -459,42 +499,47 @@ parseTime x = either (const $ parseError x "Hours") pure $
           , timeScheduled = scheduled
           }
 
+      prelTxt = string "Preliminary scheduled hours: " <|>
+                string "Preliminär schemalagd tid: "
+      recTxt  = string "Recommended self-study hours: " <|>
+                string "Rekommenderad självstudietid: "        
+
 --- Content ---
 
-parseContent :: HasError m => Text -> m Course.Content
+parseContent :: Text -> ParseResult Course.Content
 parseContent = pure . Course.Content
 
 --- Examinator ---
 
-parseExaminator :: HasError m => Text -> m (Maybe Course.Examinator)
+parseExaminator :: Text -> ParseResult (Maybe Course.Examinator)
 parseExaminator = pure . pure . Course.Examinator
 
 --- Examination ---
 
-parseExaminations :: HasError m => Text -> m [Course.Examination]
+parseExaminations :: Text -> ParseResult [Course.Examination]
 parseExaminations x =
     let mFieldList = scrapeStringLike x $
           chroot "table" $ innerHTMLs "tr"
     in case mFieldList of
-      Nothing        -> parseError x "Examinations"
+      Nothing        -> couldNotParse x "Examinations"
       Just fieldList -> traverse parseExamination fieldList
 
-parseExamination :: HasError m => Text -> m Course.Examination
+parseExamination :: Text -> ParseResult Course.Examination
 parseExamination x =
     let mFields = scrapeStringLike x $ texts "td"
     in case mFields >>= takeMay 4 of
-      Nothing -> parseError x "Examination"
+      Nothing -> couldNotParse x "Examination"
       Just [code, description, grading, credits] ->
         Course.Examination code
           <$> parseExaminationType code
           <*> pure description
           <*> parseGrading grading
           <*> parseCredits credits
-      Just _ ->  parseError x "Examination"
+      Just _ ->  couldNotParse x "Examination"
 
 --- ExaminationType ---
 
-parseExaminationType :: HasError m => Text -> m Course.ExaminationType
+parseExaminationType :: Text -> ParseResult Course.ExaminationType
 parseExaminationType x
   | "ANN"  `T.isPrefixOf` x = pure Course.ExaminationTypeANN
   | "AUSK" `T.isPrefixOf` x = pure Course.ExaminationTypeAUSK
@@ -509,11 +554,11 @@ parseExaminationType x
   | "PRA"  `T.isPrefixOf` x = pure Course.ExaminationTypePROJ
   | "TEN"  `T.isPrefixOf` x = pure Course.ExaminationTypeTEN
   | "UPG"  `T.isPrefixOf` x = pure Course.ExaminationTypeUPG
-  | otherwise               = parseError x "ExaminationType"
+  | otherwise               = couldNotParse x "ExaminationType"
 
 --- Grading ---
 
-parseGrading :: HasError m => Text -> m Course.Grading
+parseGrading :: Text -> ParseResult Course.Grading
 parseGrading "U, 3, 4, 5"   = pure Course.GradingScale
 parseGrading "U,3,4,5"      = pure Course.GradingScale
 parseGrading "U, G"         = pure Course.GradingBinary
@@ -521,14 +566,14 @@ parseGrading "U,G"          = pure Course.GradingBinary
 parseGrading "Deltagit (D)" = pure Course.GradingPresence
 parseGrading "D"            = pure Course.GradingPresence
 parseGrading ""             = pure Course.GradingUnspecified
-parseGrading x              = parseError x "Grading"
+parseGrading x              = couldNotParse x "Grading"
 
 --- Credits ---
 
-parseCredits :: HasError m => Text -> m Course.Credits
+parseCredits :: Text -> ParseResult Course.Credits
 parseCredits x = either errorOut mkCredit $ MP.parse parser "" $ T.strip x
     where
-      errorOut = const $ parseError x "Credits"
+      errorOut = const $ couldNotParse x "Credits"
       mkCredit = pure . Course.Credits . read
       parser :: Parser String
       parser   = some floatChar <* optional (space *> string "hp")
@@ -536,17 +581,17 @@ parseCredits x = either errorOut mkCredit $ MP.parse parser "" $ T.strip x
 
 --- Level ---
 
-parseLevel :: HasError m => Text -> m Course.Level
+parseLevel :: Text -> ParseResult Course.Level
 parseLevel "G1X" = pure Course.LevelG1
 parseLevel "G2X" = pure Course.LevelG2
 parseLevel "A"   = pure Course.LevelA
 parseLevel "A1X" = pure Course.LevelA1
 parseLevel "A2X" = pure Course.LevelA2
-parseLevel x     = parseError x "Level"
+parseLevel x     = couldNotParse x "Level"
 
 --- Url ---
 
-parseUrls :: HasError m => Text -> m [Url]
+parseUrls :: Text -> ParseResult [Url]
 parseUrls x = do
   let mThing = scrapeStringLike x $ attrs "href" "a"
   let thing  = maybe [] (fmap Url) mThing :: [Url]
@@ -557,3 +602,6 @@ parseUrls x = do
 sanitize :: Text -> Text
 sanitize = T.strip . T.filter (not . isTrash)
   where isTrash = (`elem` ['\t', '\n', '\r'])
+
+couldNotParse :: Text -> Text -> ParseResult a
+couldNotParse txt typ = Left $ ParseError txt typ
