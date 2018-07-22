@@ -93,7 +93,6 @@ scrapeContent url = do
   meContent <- liftIO $ scrapeURL (T.unpack $ getUrl url) contentScraper
   maybe (pure $ networkError url "Content") pure meContent
 
---  maybe (scrapeError url "Content") pure =<< sequence meContent
 contentScraper :: Scraper Text (Result Content)
 contentScraper =
   chroot ("div" @: [hasClass "main-container"]) $ do
@@ -102,14 +101,6 @@ contentScraper =
     pure $ Content
       <$> (getHeader <$> header)
       <*> (planSpecs <$> plan)
-
-{-
-        header      <- headerScraper
-        programPlan <- planScraper
-        pure $ liftA2 Content
-          (getHeader <$> header)
-          (planSpecializations <$> programPlan)
--}
 
 newtype Header = Header { getHeader :: Text }
 

@@ -44,7 +44,7 @@ spec =
                }
              , Course.programSemester   = Course.SemesterOne
              , Course.programPeriods    = [Course.PeriodOne, Course.PeriodOne]
-             , Course.programBlocks     = [Course.BlockNone, Course.BlockTwo]
+             , Course.programBlocks     = [[Course.BlockNone], [Course.BlockTwo]]
              , Course.programImportance = Course.O
              }
            , Course.CourseProgram
@@ -54,7 +54,7 @@ spec =
                }
              , Course.programSemester   = Course.SemesterOne
              , Course.programPeriods    = [Course.PeriodOne, Course.PeriodOne]
-             , Course.programBlocks     = [Course.BlockNone, Course.BlockTwo]
+             , Course.programBlocks     = [[Course.BlockNone], [Course.BlockTwo]]
              , Course.programImportance = Course.O
              }
            ]
@@ -82,33 +82,48 @@ spec =
                , examinationCredits = Course.Credits 2
                }
              ]
-           , planContent       = Course.Content "Course content"
-           , planSubjects      = [Course.SubjectMaths]
-           , planUrls          = [Url "http://www.mai.liu.se/und/kurser/index-amne-tm.html"]
-           , planTime          = CoursePage.Time 80 80
+           , planContent  = Course.Content "Course content"
+           , planSubjects = [Course.SubjectMaths]
+           , planUrls     = [Url "http://www.mai.liu.se/und/kurser/index-amne-tm.html"]
+           , planTime     = CoursePage.Time 80 80
            }
          })
 
     describe "parseBlocks" $ do
-      it "parses single blocks correctly" $ do
-        let input    = ["1", "2", "3", "4", "-"]
-            expected = Right $
-              [ Course.BlockOne
-              , Course.BlockTwo
-              , Course.BlockThree
-              , Course.BlockFour
-              , Course.BlockNone
+      it "parses all blocks correctly" $ do
+        let input    = "0, 1, 2, 3, 4, -"
+            expected = Right
+              [ [Course.BlockNil]
+              , [Course.BlockOne]
+              , [Course.BlockTwo]
+              , [Course.BlockThree]
+              , [Course.BlockFour]
+              , [Course.BlockNone]
               ]
-
-        traverse CoursePage.parseBlock input `shouldBe` expected
+        CoursePage.parseBlocks input `shouldBe` expected
 
       it "parses multiple blocks correctly" $ do
+        let input    = "-, 2"
+            actual   = CoursePage.parseBlocks input
+            expected = Right
+              [ [Course.BlockNone]
+              , [Course.BlockTwo]
+              ]
+        actual `shouldBe` expected
+
+      it "parses multiple blocks in one period correctly" $ do
         let input    = "3/4"
             actual   = CoursePage.parseBlocks input
             expected = Right
-              [ Course.BlockThree
+              [[ Course.BlockThree
               , Course.BlockFour
-              ]
+              ]]
+        actual `shouldBe` expected
+
+      it "fails to parse invalid block" $ do
+        let input    = "not a block"
+            expected = sequenceA [CoursePage.couldNotParse input "Blocks"]
+            actual   = CoursePage.parseBlocks input
         actual `shouldBe` expected
 
     describe "parseArea" $ do
@@ -253,13 +268,6 @@ spec =
         let input    = "not a field"
             expected = sequenceA [CoursePage.couldNotParse input "Field"]
             actual   = CoursePage.parseFields input
-        actual `shouldBe` expected
-
-    describe "parseBlock" $ do
-      it "fails to parse invalid block" $ do
-        let input    = "not a block"
-            expected = sequenceA [CoursePage.couldNotParse input "Block"]
-            actual   = CoursePage.parseBlocks input
         actual `shouldBe` expected
 
     describe "parseInstitution" $ do

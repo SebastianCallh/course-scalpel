@@ -36,7 +36,6 @@ module CourseScalpel.CoursePage
   ) where
 
 import           Data.Aeson                (FromJSON, ToJSON)
-import           Data.Char                 (isDigit)
 import           Data.Map                  (Map)
 import qualified Data.Map                  as M
 import           Data.Semigroup            ((<>))
@@ -220,17 +219,30 @@ parseArea x                               = couldNotParse x "Area"
 --- Blocks ---
 
 newtype Blocks = Blocks { getBlocks :: [Course.Block] }
-  deriving (Show, Eq) -- (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Eq)
 
-parseBlocks :: Text -> ParseResult [Course.Block]
-parseBlocks x =
-    if null blockChars
-    then couldNotParse x "Block"
-    else traverse parseBlock blockChars
-    where
-      blockChars = T.chunksOf 1 $ T.filter (\c -> isDigit c || c == '-') x
-
+{- | One course can span over several periods and
+     one period can span several blocks, hence a list of
+     list of blocks are parsed. -}
+parseBlocks :: Text -> ParseResult [[Course.Block]]
+parseBlocks txt = parseNonEmpty txt "Blocks" blocks
+  where
+    blocks = periodBlocks `sepBy` string ", "
+    periodBlocks = do
+      bs <- block `sepBy` char '/'
+      if null bs
+        then customFailure $ ParseError txt "Blocks"
+        else pure bs        
+    block  =
+      string "0" *> pure Course.BlockNil   <|>
+      string "1" *> pure Course.BlockOne   <|>
+      string "2" *> pure Course.BlockTwo   <|>
+      string "3" *> pure Course.BlockThree <|>
+      string "4" *> pure Course.BlockFour  <|>
+      string "-" *> pure Course.BlockNone 
+    
 parseBlock :: Text -> ParseResult Course.Block
+parseBlock "0" = pure Course.BlockNil
 parseBlock "1" = pure Course.BlockOne
 parseBlock "2" = pure Course.BlockTwo
 parseBlock "3" = pure Course.BlockThree
@@ -602,6 +614,13 @@ parseUrls x = do
 sanitize :: Text -> Text
 sanitize = T.strip . T.filter (not . isTrash)
   where isTrash = (`elem` ['\t', '\n', '\r'])
+
+parseNonEmpty :: Text -> Text -> Parser [a] -> ParseResult [a]
+parseNonEmpty txt typ parser =
+  case MP.parse parser "" txt of
+    Left  _  -> couldNotParse txt typ
+    Right [] -> couldNotParse txt typ
+    Right a  -> pure a
 
 couldNotParse :: Text -> Text -> ParseResult a
 couldNotParse txt typ = Left $ ParseError txt typ

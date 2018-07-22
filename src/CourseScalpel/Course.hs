@@ -291,7 +291,8 @@ instance Ord Slot where
 --- Block ---
 
 data Block
-  = BlockOne
+  = BlockNil
+  | BlockOne
   | BlockTwo
   | BlockThree
   | BlockFour
@@ -299,27 +300,38 @@ data Block
   deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
 
 instance Ord Block where
+  compare BlockNil BlockNone    = GT
+  compare BlockNil BlockNil     = EQ
+  compare BlockNil BlockOne     = LT
+  compare BlockNil BlockTwo     = LT
+  compare BlockNil BlockThree   = LT
+  compare BlockNil BlockFour    = LT
   compare BlockOne BlockNone    = GT
+  compare BlockOne BlockNil     = GT
   compare BlockOne BlockOne     = EQ
   compare BlockOne BlockTwo     = LT
   compare BlockOne BlockThree   = LT
   compare BlockOne BlockFour    = LT
   compare BlockTwo BlockNone    = GT
+  compare BlockTwo BlockNil     = GT
   compare BlockTwo BlockOne     = GT
   compare BlockTwo BlockTwo     = EQ
   compare BlockTwo BlockThree   = LT
   compare BlockTwo BlockFour    = LT
   compare BlockThree BlockNone  = GT
+  compare BlockThree BlockNil   = GT
   compare BlockThree BlockOne   = GT
   compare BlockThree BlockTwo   = GT
   compare BlockThree BlockThree = EQ
   compare BlockThree BlockFour  = LT
   compare BlockFour BlockNone   = GT
+  compare BlockFour BlockNil    = GT
   compare BlockFour BlockOne    = GT
   compare BlockFour BlockTwo    = GT
   compare BlockFour BlockThree  = GT
   compare BlockFour BlockFour   = EQ
   compare BlockNone BlockNone   = EQ
+  compare BlockNone BlockNil    = LT
   compare BlockNone BlockOne    = GT
   compare BlockNone BlockTwo    = GT
   compare BlockNone BlockThree  = GT
@@ -423,6 +435,6 @@ data CourseProgram = CourseProgram
   { programProgram    :: !Program
   , programSemester   :: !Semester
   , programPeriods    :: ![Period]
-  , programBlocks     :: ![Block]
+  , programBlocks     :: ![[Block]]
   , programImportance :: !Importance
   } deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
