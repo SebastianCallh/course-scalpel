@@ -16,9 +16,7 @@ module CourseScalpel.CoursePage
   , Term (..)
   , couldNotParse
   , parseAreas
-  , parseArea
   , parseBlocks
-  , parseBlock
   , parseExaminations
   , parseExamination
   , parseFields
@@ -192,29 +190,29 @@ parseSemester x = parse' . T.strip $ T.takeWhile (not . (==) '(') x
 --- Area ---
 
 parseAreas :: Text -> ParseResult [Course.Area]
-parseAreas = traverse parseArea . T.splitOn ","
-
-parseArea :: Text -> ParseResult Course.Area
-parseArea "Till\228mpad matematik"        = pure Course.AreaAppliedMaths
-parseArea "Datavetenskap"                 = pure Course.AreaComputerScience
-parseArea "Datateknik"                    = pure Course.AreaComputerEngineering
-parseArea "Elektroteknik"                 = pure Course.AreaElectrotechnic
-parseArea "Energi- och milj\246teknik"    = pure Course.AreaEnergyEnvironment
-parseArea "Maskinteknik"                  = pure Course.AreaEngineering
-parseArea "Informationsteknologi"         = pure Course.AreaInformatics
-parseArea "Industriell ekonomi"           = pure Course.AreaIndustrialEconomics
-parseArea "Matematik"                     = pure Course.AreaMaths
-parseArea "Medicinsk teknik"              = pure Course.AreaMedicinalEngineering
-parseArea "Fysik"                         = pure Course.AreaPhysics
-parseArea "Produktutveckling"             = pure Course.AreaProductDevelopment
-parseArea "Programmering"                 = pure Course.AreaProgramming
-parseArea "Naturvetenskapliga omr\229det" = pure Course.AreaScience
-parseArea "Teknik"                        = pure Course.AreaTechnical
-parseArea "Teknisk fysik"                 = pure Course.AreaTechnicalPhysics
-parseArea "Medieteknik"                   = pure Course.AreaMediaEngineering
-parseArea "\214vriga \228mnen"            = pure Course.AreaOther
-parseArea "se beslutade huvudområden"     = pure Course.AreaOther
-parseArea x                               = couldNotParse x "Area"
+parseAreas txt = parseNonEmpty txt "Areas" areas
+  where
+    areas = area `sepBy` char ','
+    area  =
+      string "Till\228mpad matematik"        *> pure Course.AreaAppliedMaths <|>
+      string "Datavetenskap"                 *> pure Course.AreaComputerScience <|>
+      string "Datateknik"                    *> pure Course.AreaComputerEngineering <|>
+      string "Elektroteknik"                 *> pure Course.AreaElectrotechnic <|>
+      string "Energi- och milj\246teknik"    *> pure Course.AreaEnergyEnvironment <|>
+      string "Maskinteknik"                  *> pure Course.AreaEngineering <|>
+      string "Informationsteknologi"         *> pure Course.AreaInformatics <|>
+      string "Industriell ekonomi"           *> pure Course.AreaIndustrialEconomics <|>
+      string "Matematik"                     *> pure Course.AreaMaths <|>
+      string "Medicinsk teknik"              *> pure Course.AreaMedicinalEngineering <|>
+      string "Fysik"                         *> pure Course.AreaPhysics <|>
+      string "Produktutveckling"             *> pure Course.AreaProductDevelopment <|>
+      string "Programmering"                 *> pure Course.AreaProgramming <|>
+      string "Naturvetenskapliga omr\229det" *> pure Course.AreaScience <|>
+      string "Teknik"                        *> pure Course.AreaTechnical <|>
+      string "Teknisk fysik"                 *> pure Course.AreaTechnicalPhysics <|>
+      string "Medieteknik"                   *> pure Course.AreaMediaEngineering <|>
+      string "\214vriga \228mnen"            *> pure Course.AreaOther <|>
+      string "se beslutade huvudområden"     *> pure Course.AreaOther
 
 --- Blocks ---
 
@@ -240,15 +238,6 @@ parseBlocks txt = parseNonEmpty txt "Blocks" blocks
       string "3" *> pure Course.BlockThree <|>
       string "4" *> pure Course.BlockFour  <|>
       string "-" *> pure Course.BlockNone 
-    
-parseBlock :: Text -> ParseResult Course.Block
-parseBlock "0" = pure Course.BlockNil
-parseBlock "1" = pure Course.BlockOne
-parseBlock "2" = pure Course.BlockTwo
-parseBlock "3" = pure Course.BlockThree
-parseBlock "4" = pure Course.BlockFour
-parseBlock "-" = pure Course.BlockNone
-parseBlock  x  = couldNotParse x "Block"
 
 --- Period ---
 
@@ -583,13 +572,14 @@ parseGrading x              = couldNotParse x "Grading"
 --- Credits ---
 
 parseCredits :: Text -> ParseResult Course.Credits
-parseCredits x = either errorOut mkCredit $ MP.parse parser "" $ T.strip x
-    where
-      errorOut = const $ couldNotParse x "Credits"
-      mkCredit = pure . Course.Credits . read
-      parser :: Parser String
-      parser   = some floatChar <* optional (space *> string "hp")
-      floatChar = digitChar <|> char '.'
+parseCredits x =
+  either errorOut mkCredit $ MP.parse parser "" $ T.strip x
+  where
+    errorOut = const $ couldNotParse x "Credits"
+    mkCredit = pure . Course.Credits . read
+    parser :: Parser String
+    parser   = some floatChar <* optional (space *> string "hp")
+    floatChar = digitChar <|> char '.'
 
 --- Level ---
 

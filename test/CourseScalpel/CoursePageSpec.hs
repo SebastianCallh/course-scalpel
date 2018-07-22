@@ -126,7 +126,7 @@ spec =
             actual   = CoursePage.parseBlocks input
         actual `shouldBe` expected
 
-    describe "parseArea" $ do
+    describe "parseAreas" $ do
       it "parses valid values" $ do
         let input = T.intercalate ","
               [ "Till\228mpad matematik"
@@ -161,9 +161,9 @@ spec =
         actual `shouldBe` expected
 
       it "fails to parse non-valid values" $ do
-        let input    = "not an area"
-            actual   = CoursePage.parseArea input
-            expected = CoursePage.couldNotParse input "Area"
+        let input    = "not areas"
+            actual   = CoursePage.parseAreas input
+            expected = CoursePage.couldNotParse input "Areas"
         actual `shouldBe` expected
 
     describe "parseExaminations" $ do
