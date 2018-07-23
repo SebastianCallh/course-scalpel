@@ -9,24 +9,25 @@ module CourseScalpel
   , mkConfig
   ) where
 
+import           Control.Parallel.Strategies
 import           Control.Monad.IO.Class    (MonadIO)
 import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
-
+  
 import           CourseScalpel.App         (App, Config (..), runApp)
 import           CourseScalpel.Course      (Course)
-import CourseScalpel.Program (Program (..))
-import qualified CourseScalpel.Program as Program
+import           CourseScalpel.Program     (Program (..))
+import qualified CourseScalpel.Program as  Program
 import qualified CourseScalpel.CoursePage  as CoursePage
-import           CourseScalpel.CoursePage (MonadCoursePage (..), Term (..))
+import           CourseScalpel.CoursePage  (MonadCoursePage (..), Term (..))
 import           CourseScalpel.Error       (AppError, HasError)
 import qualified CourseScalpel.ProgramPage as ProgramPage
 import           CourseScalpel.ProgramPage (MonadProgramPage (..))
 import           CourseScalpel.Web         (Url (..))
 
 data ScrapeProgramRes
-  = ScrapeProgramRes          [Course]
+  = ScrapeProgramSuccess      [Course]
   | ScrapeProgramNetworkError AppError
 
 instance Pretty ScrapeProgramRes where
@@ -34,7 +35,7 @@ instance Pretty ScrapeProgramRes where
     =  "Network error: "
     <> pretty err
 
-  pretty (ScrapeProgramRes courses)
+  pretty (ScrapeProgramSuccess courses)
     = "Program scraped! "
     <> pretty (length courses)
     <> " courses were scraped successfully."
@@ -58,9 +59,10 @@ scrapeProgram program = do
         <> (Program.slugToText $ programSlug program)
         
   programPage <- scrapeProgramPage url
-  let coursePages = scrapeCoursePage <$> ProgramPage.courseUrls programPage
-  courses <- traverse (fmap CoursePage.toCourse) coursePages
-  pure $ ScrapeProgramRes courses
+  let courseUrls    = ProgramPage.courseUrls programPage
+  let eCoursePages  = parMap rpar scrapeCoursePage courseUrls
+  courses <- sequence $ fmap CoursePage.toCourse <$> eCoursePages
+  pure $ ScrapeProgramSuccess courses
 
 data ScrapeCourseRes
   = ScrapeCourseSuccess      Course

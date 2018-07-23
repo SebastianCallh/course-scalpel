@@ -54,6 +54,7 @@ library
                      , megaparsec
                      , monad-logger 
                      , mtl
+                     , parallel
                      , parser-combinators
                      , prettyprinter
                      , quickcheck-arbitrary-adt
