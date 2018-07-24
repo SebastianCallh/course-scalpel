@@ -61,6 +61,7 @@ library
                      , safe
                      , scalpel
                      , text
+                     , turtle
                      , validation
   exposed-modules:     CourseScalpel
                      , CourseScalpel.App
@@ -73,6 +74,7 @@ library
                      , CourseScalpel.Time
                      , CourseScalpel.Web
                      , CourseScalpel.Web.Url
+                     , Hlint
   default-language:    Haskell2010
   
 test-suite course-scalpel-test
