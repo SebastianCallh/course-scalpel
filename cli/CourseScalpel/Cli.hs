@@ -8,37 +8,30 @@ module CourseScalpel.Cli
   ( main
   ) where
 
-import           Control.Monad             (forM, forM_)
+import           Control.Monad             (forM)
 import           Control.Monad.Except      (ExceptT (..), MonadError,
-                                            runExceptT, throwError)
+                                            runExceptT)
 import           Control.Monad.IO.Class    (liftIO)
-import           Control.Monad.Logger      (LogLevel (..), logWithoutLoc)
 import           Control.Monad.Logger      (LoggingT, MonadLogger,
-                                            runFileLoggingT, runStdoutLoggingT)
+                                            runStdoutLoggingT)
 import           Control.Monad.Reader      (asks)
 import           Control.Monad.Reader      (MonadIO, MonadReader, ReaderT,
                                             runReaderT)
-import           Control.Monad.Trans       (lift)
 import           Data.Char                 (toLower)
-import           Data.Either               (partitionEithers)
 import           Data.List                 (intercalate)
 import           Data.List.Split           (splitOn)
 import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import qualified Data.Text.IO              as T
+
 import           Data.Text.Prettyprint.Doc
-import           Data.Time
-import           Data.Time.Calendar
-import           Data.Time.Clock
-import           Data.Time.Clock           (getCurrentTime)
 import           Options.Applicative
 
 import           CourseScalpel             (CourseScalpelRunner,
                                             ScrapeCourseRes (..),
-                                            ScrapeProgramRes (..), Term (..),
-                                            mkConfig, runCourseScalpel,
-                                            scrapeCourse, scrapeProgram)
+                                            ScrapeProgramRes (..), mkConfig,
+                                            runCourseScalpel, scrapeCourse,
+                                            scrapeProgram)
 import           CourseScalpel.Error       (AppError)
 import           CourseScalpel.Program     (Code (..), Program (..), engD,
                                             engDPU, engED, engEMM, engI,
@@ -46,10 +39,7 @@ import           CourseScalpel.Program     (Code (..), Program (..), engD,
                                             engMT, engMed, engTB, engU, engY,
                                             engYInt, programCode,
                                             supportedPrograms)
-import           CourseScalpel.Time        (Year (..))
 
-
-type HasCliError = MonadError CliError
 
 data CliError
   = ParseProgramError Text
@@ -62,7 +52,6 @@ instance Pretty CliError where
     "Application error: " <> pretty appError
 
 type CourseCodeStr  = String
-type ProgramCodeStr = String
 
 data Target
   = TargetPrograms [Program]
@@ -84,9 +73,8 @@ newtype CliApp a = CliApp { unCli :: ExceptT CliError (ReaderT Options (LoggingT
 
 main :: IO ()
 main = do
-  (year, _, _) <- getCurrentTime >>= return . toGregorian . utctDay
-  options      <- execParser . opts $ Year (fromIntegral year)
-  result       <- runCliApp options cliApp
+  options <- execParser opts
+  result  <- runCliApp options cliApp
   case result of
     Left cliError -> putStrLn . show $ pretty cliError
     Right _       -> putStrLn "Done!"
@@ -132,9 +120,9 @@ scrapeCourse' runner code = do
 outputResult :: Pretty a => [Either AppError a] -> CliApp ()
 outputResult result =
   asks optionsOutput >>= \case
-    OutputStdOut    -> do
+    OutputStdOut    ->
       liftIO $ traverse (putStrLn . prettyEither) result
-      pure ()
+      *> pure ()
 
     OutputFile path -> do
       liftIO . writeFile path . show $ traverse prettyEither result
@@ -143,25 +131,24 @@ outputResult result =
 -- Would like to derive a (Pretty a, Pretty e) => Pretty (Either e a)
 -- someplace instead of this, but it would be an orphan instance.
 prettyEither :: Pretty a => Either AppError a -> String
-prettyEither (Left error) = show $ pretty error
-prettyEither (Right a)    = show $ pretty a
+prettyEither (Left err) = show $ pretty err
+prettyEither (Right a)  = show $ pretty a
 
 putLn :: String -> CliApp ()
 putLn = liftIO . putStrLn
 
-opts :: Year -> ParserInfo Options
-opts year = info (optionsParser year <**> helper)
+opts :: ParserInfo Options
+opts = info (optionsParser <**> helper)
   ( fullDesc
   <> progDesc "Application for scraping course data from https://liu.se/studieinfo."
   <> header "Course Scalpel - a web scraper for Linköping University courses." )
 
-optionsParser :: Year -> Parser Options
-optionsParser year =
+optionsParser :: Parser Options
+optionsParser =
   Options         <$>
   targetParser    <*>
   outputParser    <*>
   logFileParser
---  yearParser year
 
 targetParser :: Parser Target
 targetParser =
