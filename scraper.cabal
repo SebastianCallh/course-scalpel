@@ -22,6 +22,7 @@ executable course-scalpel-cli
                      , hoogle:hoogle
                      , hlint:hlint
   build-depends:       base >=4.7 && <5
+                     , aeson
                      , containers
                      , course-scalpel
                      , monad-logger

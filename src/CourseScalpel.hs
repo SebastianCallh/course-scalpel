@@ -13,6 +13,7 @@ import           Control.Parallel.Strategies
 import           Control.Monad.IO.Class    (MonadIO)
 import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
+import           Data.Aeson                (ToJSON (..))
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
   
 import           CourseScalpel.App         (App, Config (..), runApp)
@@ -30,6 +31,10 @@ data ScrapeProgramRes
   = ScrapeProgramSuccess      [Course]
   | ScrapeProgramNetworkError AppError
 
+instance ToJSON ScrapeProgramRes where
+  toJSON (ScrapeProgramSuccess courses)  = toJSON courses
+  toJSON (ScrapeProgramNetworkError err) = toJSON err
+  
 instance Pretty ScrapeProgramRes where
   pretty (ScrapeProgramNetworkError err)
     =  "Network error: "
@@ -69,6 +74,11 @@ data ScrapeCourseRes
   | ScrapeCourseParseError   AppError
   | ScrapeCourseNetworkError AppError
 
+instance ToJSON ScrapeCourseRes where
+  toJSON (ScrapeCourseSuccess course)   = toJSON course
+  toJSON (ScrapeCourseParseError   err) = toJSON err
+  toJSON (ScrapeCourseNetworkError err) = toJSON err
+    
 instance Pretty ScrapeCourseRes where
   pretty (ScrapeCourseSuccess course)
     =  "Course scraped: "

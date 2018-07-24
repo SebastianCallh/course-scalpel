@@ -14,16 +14,16 @@ import           Control.Monad.Except      (ExceptT (..), MonadError,
 import           Control.Monad.IO.Class    (liftIO)
 import           Control.Monad.Logger      (LoggingT, MonadLogger,
                                             runStdoutLoggingT)
-import           Control.Monad.Reader      (asks)
-import           Control.Monad.Reader      (MonadIO, MonadReader, ReaderT,
+import           Control.Monad.Reader      (MonadIO, MonadReader, ReaderT, asks,
                                             runReaderT)
+import           Data.Aeson                (ToJSON)
+import           Data.Aeson.Text           (encodeToLazyText)
 import           Data.Char                 (toLower)
-import           Data.List                 (intercalate)
 import           Data.List.Split           (splitOn)
 import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-
+import qualified Data.Text.Lazy            as L
 import           Data.Text.Prettyprint.Doc
 import           Options.Applicative
 
@@ -76,7 +76,7 @@ main = do
   options <- execParser opts
   result  <- runCliApp options cliApp
   case result of
-    Left cliError -> putStrLn . show $ pretty cliError
+    Left cliError -> print $ pretty cliError
     Right _       -> putStrLn "Done!"
 
 runCliApp :: Options -> CliApp a -> IO (Either CliError a)
@@ -99,12 +99,11 @@ scrapePrograms'
   -> [Program]
   -> CliApp ()
 scrapePrograms' runner programs = do
-  logFilePath <- asks optionsLogFile
+  _logFilePath <- asks optionsLogFile
   putLn "Scraping programs..."
   results <- forM programs $ \program -> do
-    putLn $ "Scraping program " <> (show $ programCode program)
-    result <- liftIO . runner $ scrapeProgram program
-    pure result
+    putLn $ "Scraping program " <> show (programCode program)
+    liftIO . runner $ scrapeProgram program
 
   outputResult results
 
@@ -117,22 +116,26 @@ scrapeCourse' runner code = do
   result <- liftIO . runner . scrapeCourse $ T.pack code
   outputResult [result]
 
-outputResult :: Pretty a => [Either AppError a] -> CliApp ()
-outputResult result =
+outputResult :: ToJSON a => [Either AppError a] -> CliApp ()
+outputResult results =
   asks optionsOutput >>= \case
-    OutputStdOut    ->
-      liftIO $ traverse (putStrLn . prettyEither) result
-      *> pure ()
+    OutputStdOut -> do
+      _ <- liftIO  $ traverse (putStrLn . toStr) results
+      pure ()
 
-    OutputFile path -> do
-      liftIO . writeFile path . show $ traverse prettyEither result
-      putLn $ "Result written to " <> path
+    OutputFile path ->
+      case sequence results of
+        Left  err -> do
+          liftIO . print $ pretty err
+          putLn "There were errors. No results written."
 
--- Would like to derive a (Pretty a, Pretty e) => Pretty (Either e a)
--- someplace instead of this, but it would be an orphan instance.
-prettyEither :: Pretty a => Either AppError a -> String
-prettyEither (Left err) = show $ pretty err
-prettyEither (Right a)  = show $ pretty a
+        Right scrapeRes -> do
+          liftIO . writeFile path $ toStr scrapeRes
+          putLn $ "Results written to " <> path <> " ."
+
+  where
+    toStr :: ToJSON a => a -> String
+    toStr = T.unpack . L.toStrict  . encodeToLazyText
 
 putLn :: String -> CliApp ()
 putLn = liftIO . putStrLn
@@ -190,7 +193,7 @@ targetParser =
          [ "Target course to scrape.\n"
          , "Example: \"-p d\", \"-p 'd it u'\"\n"
          , "Available programs: "
-         , intercalate " " $ writeProgram <$> supportedPrograms
+         , unwords $ writeProgram <$> supportedPrograms
          ])
       )
 
