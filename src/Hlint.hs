@@ -4,5 +4,5 @@ import           Turtle
 
 run :: IO ()
 run =
-  shell "hlint . --ignore 'Use $>'" ""
+  shell "hlint src --ignore 'Use $>'" ""
   *> pure ()
