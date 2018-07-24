@@ -9,8 +9,7 @@ module CourseScalpel.Course where
 import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.Data                     (Typeable)
 import           Data.Ord                      (comparing)
-import           Data.Semigroup                (Semigroup (..))
-import           Data.Semigroup                ((<>))
+import           Data.Semigroup                (Semigroup (..), (<>))
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Text.Prettyprint.Doc     hiding (space)

@@ -1,21 +1,17 @@
 module CourseScalpel.ProgramPageSpec where
 
-import           Data.Either               (lefts)
-import           Data.List                 (nub)
 import           Data.Maybe                (fromJust)
-import           Data.Text                 (Text)
 import           Data.Text.IO              (readFile)
 import           Data.Validation           (Validation (..))
 import           Prelude                   hiding (readFile)
 import           Test.Hspec
-import           Text.HTML.Scalpel         (attr, attrs, chroot, hasClass,
-                                            scrapeStringLike, (//), (@:))
+import           Text.HTML.Scalpel         (attrs, hasClass, scrapeStringLike,
+                                            (//), (@:))
 
-import           CourseScalpel.Error       (AppError (..))
 import qualified CourseScalpel.ProgramPage as ProgramPage
 
 spec :: SpecWith ()
-spec = do
+spec =
   describe "programPageContentScraper" $
     it "scrapes program 6cddd correctly" $ do
      markup <- readFile "test/markup/program-6cddd.html"

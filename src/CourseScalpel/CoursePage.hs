@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveAnyClass      #-}
-{-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -166,9 +165,8 @@ instance Pretty Header where
 
 headerScraper :: Scraper Text (ParseResult Header)
 headerScraper =
-  chroot ("div" @: [hasClass "main-container"]) $ chroot "header" $ do
-    txt <- text "h1"
-    pure $ parseHeader txt
+  chroot ("div" @: [hasClass "main-container"]) $ chroot "header" $
+    parseHeader <$> text "h1"
 
 {- Looks like the following so only the
    number in the beginning is relevant: "1 (HT 2018)". -}
@@ -263,7 +261,7 @@ parseImportance  x    = couldNotParse x "CoursePageImportance"
 -- Drops first tr since it is header. Very brittle.
 programsScraper :: Scraper Text (ParseResult [Course.CourseProgram])
 programsScraper =
-  chroot ("table" @: [hasClass "study-guide-table"]) $ do
+  chroot ("table" @: [hasClass "study-guide-table"]) $
     sequenceA
     . filter supportedProgram
     . fmap parseCourseProgram
@@ -291,10 +289,10 @@ parseCourseProgram x = do
             Left _ -> Left $ UnsupportedProgram slugTxt
             Right  program ->
               let eCourseProgram = Course.CourseProgram program
-                    <$> (parseSemester semesterTxt)
-                    <*> (parsePeriods periodTxt)
-                    <*> (parseBlocks blockTxt)
-                    <*> (parseImportance importanceTxt)
+                    <$> parseSemester semesterTxt
+                    <*> parsePeriods periodTxt
+                    <*> parseBlocks blockTxt
+                    <*> parseImportance importanceTxt
               in case eCourseProgram of
                 Left err            -> Left err
                 Right courseProgram -> pure courseProgram
@@ -488,11 +486,11 @@ parseTime x =
       parser :: Parser Time
       parser = do
         scheduled <- fmap read $ prelTxt
-          *> (optional $ char '-')
+          *> optional (char '-')
           *> some digitChar
           <* string " h <br>"
         selfStudy <- fmap read $ recTxt
-          *> (optional $ char '-')
+          *> optional (char '-')
           *> some digitChar
           <* string " h"
         pure Time

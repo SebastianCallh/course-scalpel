@@ -1,26 +1,16 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE OverloadedStrings          #-}
-
 module CourseScalpel.CoursePageSpec where
 
-import           Control.Monad.Except     (ExceptT, MonadError, runExceptT)
-import           Control.Monad.IO.Class   (MonadIO, liftIO)
-import           Data.Maybe               (isJust)
-import           Data.Text                (Text)
 import qualified Data.Text                as T
 import           Data.Text.IO             (readFile)
 import           Prelude                  hiding (readFile)
 import           Test.Hspec
 import           Text.HTML.Scalpel        (scrapeStringLike)
 
-import           CourseScalpel.Course     (CourseProgram (..))
 import qualified CourseScalpel.Course     as Course
-import           CourseScalpel.CoursePage (Blocks (..), CoursePage (..))
+import           CourseScalpel.CoursePage (CoursePage (..))
 import qualified CourseScalpel.CoursePage as CoursePage
 import           CourseScalpel.Error      (AppError)
 import           CourseScalpel.Parsing    (parse, parseError)
-import           CourseScalpel.Program    (Program (..))
 import qualified CourseScalpel.Program    as Program
 import           CourseScalpel.Web        (Url (..))
 
@@ -401,7 +391,7 @@ spec =
               actual   = CoursePage.parseHeader input
           actual `shouldBe` expected
 
-    describe "parseSubjects" $ do
+    describe "parseSubjects" $
       it "parses subjects with a comma in the name" $ do
         let input    = "Ledarskap, organisation och styrning"
             expected = Right [Course.SubjectLeadershipOrganisation]

@@ -56,12 +56,12 @@ scrapeProgram
   -> m ScrapeProgramRes
 scrapeProgram program = do
   let url = Url $ "https://liu.se/studieinfo/program/"
-        <> (Program.slugToText $ programSlug program)
+        <> Program.slugToText (programSlug program)
         
   programPage <- scrapeProgramPage url
   let courseUrls    = ProgramPage.courseUrls programPage
   let eCoursePages  = parMap rpar scrapeCoursePage courseUrls
-  courses <- sequence $ fmap CoursePage.toCourse <$> eCoursePages
+  courses <- traverse (fmap CoursePage.toCourse) eCoursePages
   pure $ ScrapeProgramSuccess courses
 
 data ScrapeCourseRes

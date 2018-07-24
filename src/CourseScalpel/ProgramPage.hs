@@ -18,7 +18,6 @@ import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Validation           (Validation (..), toEither)
-import           Prelude                   hiding (readFile)
 import           Text.HTML.Scalpel         hiding (scrape)
 import           Text.Megaparsec           (some, (<|>))
 import qualified Text.Megaparsec           as MP
@@ -60,10 +59,10 @@ type Result a = Validation [Error] a
 type Message = Text
 
 parseError :: Text -> Message -> Validation [Error] a
-parseError txt msg = Failure $ [ParseError txt msg]
+parseError txt msg = Failure [ParseError txt msg]
 
 networkError :: Url -> Message -> Validation [Error] a
-networkError url msg = Failure $ [NetworkError url msg]
+networkError url msg = Failure [NetworkError url msg]
 
 scrape :: (HasError m, MonadIO m) => Url -> m ProgramPage
 scrape url = do
@@ -128,7 +127,7 @@ data SpecializationSection = SpecializationSection
   } deriving (Show, Eq)
 
 planScraper :: Scraper Text (Result Plan)
-planScraper = do
+planScraper =
   chroot ("div" @: [hasClass "programplan"]) $ do
     specAttrs <- attrs "data-specialization" $
       "div" @: [hasClass "specialization"]
