@@ -260,24 +260,6 @@ data Level
   | LevelA2
   deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
 
---- Slot ---
-
-data Slot = Slot
-  { slotSemester :: !Semester
-  , slotPeriod   :: !Period
-  , slotBlocks   :: ![Block]
-  } deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
-
-instance Ord Slot where
-  compare a b =
-    case comparing slotSemester a b of
-      LT -> LT
-      GT -> GT
-      EQ -> case comparing slotPeriod a b of
-        LT -> LT
-        GT -> GT
-        EQ -> comparing slotBlocks a b
-
 --- Block ---
 
 data Block
