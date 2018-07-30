@@ -68,7 +68,6 @@ instance Pretty Course where
     , pretty courseCredits
     ]
 
-
 --- Area ---
 
 data Area
@@ -260,14 +259,6 @@ data Level
   | LevelA1
   | LevelA2
   deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
-
---- Occasion ---
-
-newtype Occasion = Occasion { getOccasion :: [Slot] }
-  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
-
-instance Semigroup Occasion where
-  (<>) x y = Occasion $ getOccasion x <> getOccasion y
 
 --- Slot ---
 
