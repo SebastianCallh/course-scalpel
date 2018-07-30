@@ -12,7 +12,6 @@ module CourseScalpel.CoursePage
   , Plan (..)
   , Blocks (..)
   , Time (..)
-  , Term (..)
   , couldNotParse
   , parseAreas
   , parseBlocks
@@ -56,9 +55,6 @@ data CoursePage = CoursePage
   , coursePagePrograms :: ![Course.CourseProgram]
   , coursePagePlan     :: !Plan
   } deriving (Show, Eq)
-
--- | Needed for the studyinfo pin what version of the course to fetch.
-data Term = HT | VT
 
 class Monad m => MonadCoursePage m where
   scrapeCoursePage :: Url -> m CoursePage

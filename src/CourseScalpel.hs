@@ -2,7 +2,8 @@ module CourseScalpel
   ( ScrapeProgramRes (..)
   , ScrapeCourseRes (..)
   , CourseScalpelRunner
-  , Term (..)
+  , Program (..)
+  , Course (..)
   , scrapeProgram
   , scrapeCourse
   , runCourseScalpel
@@ -21,7 +22,7 @@ import           CourseScalpel.Course      (Course)
 import           CourseScalpel.Program     (Program (..))
 import qualified CourseScalpel.Program as  Program
 import qualified CourseScalpel.CoursePage  as CoursePage
-import           CourseScalpel.CoursePage  (MonadCoursePage (..), Term (..))
+import           CourseScalpel.CoursePage  (MonadCoursePage (..))
 import           CourseScalpel.Error       (AppError, HasError)
 import qualified CourseScalpel.ProgramPage as ProgramPage
 import           CourseScalpel.ProgramPage (MonadProgramPage (..))
