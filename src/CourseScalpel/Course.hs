@@ -148,7 +148,7 @@ data Examination = Examination
 --- Credits ---
 
 newtype Credits = Credits { getCredits :: Float }
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 instance Parseable Credits where
   parse x = either errorOut mkCredit $ MP.parse parser "" $ T.strip x
