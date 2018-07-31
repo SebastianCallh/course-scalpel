@@ -8,7 +8,7 @@ module CourseScalpel.Error
   ) where
 
 import           Control.Monad.Except      (MonadError, throwError)
-import           Data.Aeson                (ToJSON (..))
+import           Data.Aeson                (ToJSON (..), object, (.=))
 import           Data.Semigroup            (Semigroup (..), (<>))
 import           Data.Text                 (Text)
 import           Data.Text.Prettyprint.Doc
@@ -24,8 +24,18 @@ data AppError
   deriving (Show, Eq)
 
 instance ToJSON AppError where
-  toJSON (ParseError txt msg)  = toJSON msg
-  toJSON (ScrapeError txt msg) = toJSON msg
+  toJSON (ParseError txt msg)  = object
+    [ "type" .= ("parse-error" :: Text)
+    , "input"   .= txt
+    , "message" .= toJSON msg
+    ]
+
+  toJSON (ScrapeError url msg) = object
+    [ "type" .= ("scrape-error" :: Text)
+    , "url"   .= url
+    , "message" .= toJSON msg
+    ]
+
   toJSON (MultipleErrors errs) = toJSON errs
 
 instance Semigroup AppError where
