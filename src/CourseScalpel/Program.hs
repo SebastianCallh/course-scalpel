@@ -41,7 +41,7 @@ import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
 data Program = Program
   { programCode :: !Code
   , programSlug :: !Slug
-  } deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  } deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 instance Arbitrary Program where
   arbitrary = oneof $ pure <$> supportedPrograms
@@ -65,7 +65,7 @@ data Code
   | EngTB        -- Teknisk biologi
   | EngDPU       -- Design och produktutveckling
   | EngKB        -- Kemisk biologi
-  deriving (Show, Read, Eq, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
 
 {-instance HasText Code where
   toText EngD    = "D"
@@ -129,7 +129,7 @@ data Slug
   | P6CDPU -- DPU
   | P6CTBI -- TB
   | P6CKEB -- KB
-  deriving (Show, Read, Eq, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
 
 instance Arbitrary Slug where
   arbitrary = genericArbitrary

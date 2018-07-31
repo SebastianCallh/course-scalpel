@@ -105,17 +105,17 @@ newtype Content = Content { getContent :: Text }
 data Time = Time
   { timeSelfStudy :: Word
   , timeScheduled :: Word
-  } deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  } deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Importance ---
 
 data Importance = V | O | F | OV
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Examinator ---
 
 newtype Examinator = Examinator { getExaminator :: Text }
-    deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+    deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- ExaminationType ---
 
@@ -258,7 +258,7 @@ data Level
   | LevelA
   | LevelA1
   | LevelA2
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Block ---
 
@@ -377,7 +377,7 @@ data Specialization
   | SpecializationSoftwareEngineering
   | SpecializationSystemsTechnology
   | SpecializationSystemOnChip
-  deriving (Show, Eq, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
+  deriving (Show, Eq, Ord, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
 
 instance Arbitrary Specialization where
   arbitrary = genericArbitrary
@@ -409,4 +409,4 @@ data CourseProgram = CourseProgram
   , programPeriods    :: ![Period]
   , programBlocks     :: ![[Block]]
   , programImportance :: !Importance
-  } deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  } deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
