@@ -90,12 +90,12 @@ data Area
   | AreaTechnical
   | AreaTechnicalPhysics
   | AreaOther
-  deriving (Show, Read, Eq, Typeable, Generic,FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic,FromJSON, ToJSON)
 
 --- Content ---
 
 newtype Content = Content { getContent :: Text }
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Time ---
 
@@ -133,7 +133,7 @@ data ExaminationType
   | ExaminationTypeBAS
   | ExaminationTypeDAT
   | ExaminationTypeHEM
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Examination ---
 
@@ -143,7 +143,7 @@ data Examination = Examination
   , examinationDescription :: !Text
   , examinationGrading     :: !Grading
   , examinationCredits     :: !Credits
-  } deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  } deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Credits ---
 
@@ -188,7 +188,7 @@ data Subject
   | SubjectPhilosophy
   | SubjectPhysics
   | SubjectSpanish
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Field ---
 
@@ -199,12 +199,12 @@ data Field
   | FieldScience
   | FieldSociety
   | FieldTechnical
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Prerequisites ---
 
 newtype Prerequisites = Prerequisites { getPrerequisites :: Text }
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Institution ---
 
@@ -227,7 +227,7 @@ data Grading
   | GradingScale       -- U / 3 / 4 / 5
   | GradingPresence    -- Mandatory presence
   | GradingUnspecified -- There is a grading named "D". I do not know what it means.
-  deriving (Show, Read, Eq, Typeable, Generic, FromJSON, ToJSON)
+  deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 {-
 --- Validation ---
