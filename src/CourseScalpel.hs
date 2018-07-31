@@ -18,7 +18,7 @@ import           Data.Aeson                (ToJSON (..))
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
   
 import           CourseScalpel.App         (App, Config (..), runApp)
-import           CourseScalpel.Course      (Course)
+import           CourseScalpel.Course      (Course (..))
 import           CourseScalpel.Program     (Program (..))
 import qualified CourseScalpel.Program as  Program
 import qualified CourseScalpel.CoursePage  as CoursePage
