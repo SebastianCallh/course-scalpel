@@ -45,14 +45,18 @@ import qualified Text.Megaparsec           as MP
 import           Text.Megaparsec.Char
 
 import           CourseScalpel.Course      (Course (..))
+import CourseScalpel.Examination (Examination (..))
+import qualified CourseScalpel.Examination as Examination
 import qualified CourseScalpel.Course      as Course
 import           CourseScalpel.Parsing     (takeMay)
 import qualified CourseScalpel.Program     as Program
 import           CourseScalpel.Web         (Url (..))
+import CourseScalpel.CourseProgram (CourseProgram (..), Semester (..),
+                                    Block (..), Period (..), Importance (..))
 
 data CoursePage = CoursePage
   { coursePageHeader   :: !Header
-  , coursePagePrograms :: ![Course.CourseProgram]
+  , coursePagePrograms :: ![CourseProgram]
   , coursePagePlan     :: !Plan
   } deriving (Show, Eq)
 
@@ -100,14 +104,14 @@ toCourse :: CoursePage ->  Course
 toCourse CoursePage{..} = Course
   { courseCode          = headerCode        coursePageHeader
   , courseName          = headerName        coursePageHeader
-  , courseCredits       = headerCredits     coursePageHeader
+--  , courseCredits       = headerCredits     coursePageHeader
   , courseLevel         = planLevel         coursePagePlan
   , courseAreas         = planAreas         coursePagePlan
   , courseInstitution   = planInstitution   coursePagePlan
-  , coursePrograms      =                   coursePagePrograms
+--  , coursePrograms      =                   coursePagePrograms
   , courseFields        = planFields        coursePagePlan
   , coursePrerequisites = planPrerequisites coursePagePlan
-  , courseGrades        = planGrades        coursePagePlan
+--  , courseGrades        = planGrades        coursePagePlan
   , courseExaminator    = planExaminator    coursePagePlan
   , courseExaminations  = planExaminations  coursePagePlan
   , courseContent       = planContent       coursePagePlan
@@ -118,7 +122,7 @@ toCourse CoursePage{..} = Course
   }
 
 data Header = Header
-  { headerCredits :: !Course.Credits
+  { headerCredits :: !Examination.Credits
   , headerCode    :: !Text
   , headerName    :: !Text
   } deriving (Show, Eq)
@@ -146,7 +150,7 @@ parseHeader x = do
       _      <- char '('
       code   <- T.pack <$> some alphaNumChar
       _      <- char ')'
-      pure (Course.Credits amount, code)
+      pure (Examination.Credits amount, code)
 
     nameParser :: Parser Text
     nameParser = T.pack <$> some (alphaNumChar <|> spaceChar <|> char ',')
@@ -166,19 +170,19 @@ headerScraper =
 
 {- Looks like the following so only the
    number in the beginning is relevant: "1 (HT 2018)". -}
-parseSemester :: Text -> ParseResult Course.Semester
+parseSemester :: Text -> ParseResult Semester
 parseSemester x = parse' . T.strip $ T.takeWhile (not . (==) '(') x
   where
-    parse' "1"  = pure Course.SemesterOne
-    parse' "2"  = pure Course.SemesterTwo
-    parse' "3"  = pure Course.SemesterThree
-    parse' "4"  = pure Course.SemesterFour
-    parse' "5"  = pure Course.SemesterFive
-    parse' "6"  = pure Course.SemesterSix
-    parse' "7"  = pure Course.SemesterSeven
-    parse' "8"  = pure Course.SemesterEight
-    parse' "9"  = pure Course.SemesterNine
-    parse' "10" = pure Course.SemesterTen
+    parse' "1"  = pure SemesterOne
+    parse' "2"  = pure SemesterTwo
+    parse' "3"  = pure SemesterThree
+    parse' "4"  = pure SemesterFour
+    parse' "5"  = pure SemesterFive
+    parse' "6"  = pure SemesterSix
+    parse' "7"  = pure SemesterSeven
+    parse' "8"  = pure SemesterEight
+    parse' "9"  = pure SemesterNine
+    parse' "10" = pure SemesterTen
     parse' _    = couldNotParse x "CoursePageSemester"
 
 --- Area ---
@@ -210,13 +214,13 @@ parseAreas txt = parseNonEmpty txt "Areas" areas
 
 --- Blocks ---
 
-newtype Blocks = Blocks { getBlocks :: [Course.Block] }
+newtype Blocks = Blocks { getBlocks :: [Block] }
   deriving (Show, Eq)
 
 {- | One course can span over several periods and
      one period can span several blocks, hence a list of
      list of blocks are parsed. -}
-parseBlocks :: Text -> ParseResult [[Course.Block]]
+parseBlocks :: Text -> ParseResult [[Block]]
 parseBlocks txt = parseNonEmpty txt "Blocks" blocks
   where
     blocks = periodBlocks `sepBy` string ", "
@@ -226,36 +230,36 @@ parseBlocks txt = parseNonEmpty txt "Blocks" blocks
         then customFailure $ ParseError txt "Blocks"
         else pure bs        
     block  =
-      string "0" *> pure Course.BlockNil   <|>
-      string "1" *> pure Course.BlockOne   <|>
-      string "2" *> pure Course.BlockTwo   <|>
-      string "3" *> pure Course.BlockThree <|>
-      string "4" *> pure Course.BlockFour  <|>
-      string "-" *> pure Course.BlockNone 
+      string "0" *> pure BlockNil   <|>
+      string "1" *> pure BlockOne   <|>
+      string "2" *> pure BlockTwo   <|>
+      string "3" *> pure BlockThree <|>
+      string "4" *> pure BlockFour  <|>
+      string "-" *> pure BlockNone 
 
 --- Period ---
 
-parsePeriods :: Text -> ParseResult [Course.Period]
+parsePeriods :: Text -> ParseResult [Period]
 parsePeriods = traverse (parsePeriod . T.strip) . T.splitOn ","
 
-parsePeriod :: Text -> ParseResult Course.Period
-parsePeriod "0" = pure Course.PeriodOne
-parsePeriod "1" = pure Course.PeriodOne
-parsePeriod "2" = pure Course.PeriodTwo
+parsePeriod :: Text -> ParseResult Period
+parsePeriod "0" = pure PeriodOne
+parsePeriod "1" = pure PeriodOne
+parsePeriod "2" = pure PeriodTwo
 parsePeriod x   = couldNotParse x "CoursePagePeriod"
 
 --- Importance ---
 
-parseImportance :: Text -> ParseResult Course.Importance
-parseImportance "v"   = pure Course.V
-parseImportance "o"   = pure Course.O
-parseImportance "f"   = pure Course.F
-parseImportance "o/v" = pure Course.OV
+parseImportance :: Text -> ParseResult Importance
+parseImportance "v"   = pure V
+parseImportance "o"   = pure O
+parseImportance "f"   = pure F
+parseImportance "o/v" = pure OV
 parseImportance  x    = couldNotParse x "CoursePageImportance"
 
 -- First table with class study-guide-table is the right one, currently.
 -- Drops first tr since it is header. Very brittle.
-programsScraper :: Scraper Text (ParseResult [Course.CourseProgram])
+programsScraper :: Scraper Text (ParseResult [CourseProgram])
 programsScraper =
   chroot ("table" @: [hasClass "study-guide-table"]) $
     sequenceA
@@ -271,7 +275,7 @@ programsScraper =
 
 --- CourseProgram ---
 
-parseCourseProgram :: Text -> ParseResult Course.CourseProgram
+parseCourseProgram :: Text -> ParseResult CourseProgram
 parseCourseProgram x = do
     let mFields    = scrapeStringLike x $ texts "td"
     let mSanFields = fmap sanitize <$> mFields
@@ -284,7 +288,8 @@ parseCourseProgram x = do
           case programFromSlug slugTxt of
             Left _ -> Left $ UnsupportedProgram slugTxt
             Right  program ->
-              let eCourseProgram = Course.CourseProgram program
+              let eCourseProgram = CourseProgram program
+                  
                     <$> parseSemester semesterTxt
                     <*> parsePeriods periodTxt
                     <*> parseBlocks blockTxt
@@ -307,9 +312,9 @@ data Plan = Plan
   , planFields        :: ![Course.Field]
   , planLevel         :: !Course.Level
   , planPrerequisites :: !(Maybe Course.Prerequisites)
-  , planGrades        :: !Course.Grading
+  , planGrades        :: !Examination.Grading
   , planExaminator    :: !(Maybe Course.Examinator)
-  , planExaminations  :: ![Course.Examination]
+  , planExaminations  :: ![Examination]
   , planContent       :: !Course.Content
   , planSubjects      :: ![Course.Subject]
   , planUrls          :: ![Url]
@@ -511,7 +516,7 @@ parseExaminator = pure . pure . Course.Examinator
 
 --- Examination ---
 
-parseExaminations :: Text -> ParseResult [Course.Examination]
+parseExaminations :: Text -> ParseResult [Examination]
 parseExaminations x =
     let mFieldList = scrapeStringLike x $
           chroot "table" $ innerHTMLs "tr"
@@ -519,13 +524,13 @@ parseExaminations x =
       Nothing        -> couldNotParse x "Examinations"
       Just fieldList -> traverse parseExamination fieldList
 
-parseExamination :: Text -> ParseResult Course.Examination
+parseExamination :: Text -> ParseResult Examination
 parseExamination x =
     let mFields = scrapeStringLike x $ texts "td"
     in case mFields >>= takeMay 4 of
       Nothing -> couldNotParse x "Examination"
       Just [code, description, grading, credits] ->
-        Course.Examination code
+        Examination code
           <$> parseExaminationType code
           <*> pure description
           <*> parseGrading grading
@@ -534,33 +539,33 @@ parseExamination x =
 
 --- ExaminationType ---
 
-parseExaminationType :: Text -> ParseResult Course.ExaminationType
+parseExaminationType :: Text -> ParseResult Examination.Type
 parseExaminationType x
-  | "ANN"  `T.isPrefixOf` x = pure Course.ExaminationTypeANN
-  | "AUSK" `T.isPrefixOf` x = pure Course.ExaminationTypeAUSK
-  | "BAS"  `T.isPrefixOf` x = pure Course.ExaminationTypeBAS
-  | "DAT"  `T.isPrefixOf` x = pure Course.ExaminationTypeDAT
-  | "HEM"  `T.isPrefixOf` x = pure Course.ExaminationTypeHEM
-  | "KTR"  `T.isPrefixOf` x = pure Course.ExaminationTypeKTR
-  | "LAB"  `T.isPrefixOf` x = pure Course.ExaminationTypeLAB
-  | "MOM"  `T.isPrefixOf` x = pure Course.ExaminationTypeMOM
-  | "MUN"  `T.isPrefixOf` x = pure Course.ExaminationTypeMUN
-  | "OPPO" `T.isPrefixOf` x = pure Course.ExaminationTypeOPPO
-  | "PRA"  `T.isPrefixOf` x = pure Course.ExaminationTypePROJ
-  | "TEN"  `T.isPrefixOf` x = pure Course.ExaminationTypeTEN
-  | "UPG"  `T.isPrefixOf` x = pure Course.ExaminationTypeUPG
+  | "ANN"  `T.isPrefixOf` x = pure Examination.ANN
+  | "AUSK" `T.isPrefixOf` x = pure Examination.AUSK
+  | "BAS"  `T.isPrefixOf` x = pure Examination.BAS
+  | "DAT"  `T.isPrefixOf` x = pure Examination.DAT
+  | "HEM"  `T.isPrefixOf` x = pure Examination.HEM
+  | "KTR"  `T.isPrefixOf` x = pure Examination.KTR
+  | "LAB"  `T.isPrefixOf` x = pure Examination.LAB
+  | "MOM"  `T.isPrefixOf` x = pure Examination.MOM
+  | "MUN"  `T.isPrefixOf` x = pure Examination.MUN
+  | "OPPO" `T.isPrefixOf` x = pure Examination.OPPO
+  | "PRA"  `T.isPrefixOf` x = pure Examination.PROJ
+  | "TEN"  `T.isPrefixOf` x = pure Examination.TEN
+  | "UPG"  `T.isPrefixOf` x = pure Examination.UPG
   | otherwise               = couldNotParse x "ExaminationType"
 
 --- Grading ---
 
-parseGrading :: Text -> ParseResult Course.Grading
-parseGrading "U, 3, 4, 5"   = pure Course.GradingScale
-parseGrading "U,3,4,5"      = pure Course.GradingScale
-parseGrading "U, G"         = pure Course.GradingBinary
-parseGrading "U,G"          = pure Course.GradingBinary
-parseGrading "Deltagit (D)" = pure Course.GradingPresence
-parseGrading "D"            = pure Course.GradingPresence
-parseGrading ""             = pure Course.GradingUnspecified
+parseGrading :: Text -> ParseResult Examination.Grading
+parseGrading "U, 3, 4, 5"   = pure Examination.Scale
+parseGrading "U,3,4,5"      = pure Examination.Scale
+parseGrading "U, G"         = pure Examination.Binary
+parseGrading "U,G"          = pure Examination.Binary
+parseGrading "Deltagit (D)" = pure Examination.Presence
+parseGrading "D"            = pure Examination.Presence
+parseGrading ""             = pure Examination.Unspecified
 parseGrading x              = couldNotParse x "Grading"
 
 --- Credits ---

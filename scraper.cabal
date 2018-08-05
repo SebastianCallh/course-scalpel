@@ -68,7 +68,9 @@ library
                      , CourseScalpel.App
                      , CourseScalpel.Course
                      , CourseScalpel.CoursePage
+                     , CourseScalpel.CourseProgram
                      , CourseScalpel.Error
+                     , CourseScalpel.Examination
                      , CourseScalpel.Parsing
                      , CourseScalpel.Program
                      , CourseScalpel.ProgramPage

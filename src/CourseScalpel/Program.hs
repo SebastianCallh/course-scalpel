@@ -67,43 +67,6 @@ data Code
   | EngKB        -- Kemisk biologi
   deriving (Show, Read, Eq, Ord, Typeable, Generic, ToADTArbitrary, FromJSON, ToJSON)
 
-{-instance HasText Code where
-  toText EngD    = "D"
-  toText EngU    = "U"
-  toText EngI    = "I"
-  toText EngIInt = "Iint"
-  toText EngIT   = "IT"
-  toText EngY    = "Y"
-  toText EngYInt = "YInt"
-  toText EngMed  = "Med"
-  toText EngED   = "ED"
-  toText EngMT   = "MT"
-  toText EngKTS  = "KTS"
-  toText EngM    = "M"
-  toText EngEMM  = "EMM"
-  toText EngTB   = "TB"
-  toText EngDPU  = "DPU"
-  toText EngKB   = "KB"
-
-  fromText "D"    = pure EngD
-  fromText "U"    = pure EngU
-  fromText "I"    = pure EngI
-  fromText "Iint" = pure EngIInt
-  fromText "IT"   = pure EngIT
-  fromText "Y"    = pure EngY
-  fromText "YInt" = pure EngYInt
-  fromText "Med"  = pure EngMed
-  fromText "ED"   = pure EngED
-  fromText "MT"   = pure EngMT
-  fromText "KTS"  = pure EngKTS
-  fromText "M"    = pure EngM
-  fromText "EMM"  = pure EngEMM
-  fromText "TB"   = pure EngTB
-  fromText "DPU"  = pure EngDPU
-  fromText "KB"   = pure EngKB
-  fromText x      = parseError x "Program Slug"
--}
-
 instance Arbitrary Code where
   arbitrary = genericArbitrary
 
