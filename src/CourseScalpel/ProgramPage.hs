@@ -25,7 +25,7 @@ import           Text.Megaparsec.Char
 
 import qualified CourseScalpel.Course      as Course
 import           CourseScalpel.Error       (HasError)
-import           CourseScalpel.Parsing     (Parser)
+import           CourseScalpel.Parser     (Parser)
 import           CourseScalpel.Web         (Url (..), scrapeError)
 
 -- | A program page like the following

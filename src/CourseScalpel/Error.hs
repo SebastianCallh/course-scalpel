@@ -75,4 +75,3 @@ type HasError = MonadError AppError
 -- | May want to change error handling so wrap throwError
 appError :: HasError m => AppError -> m a
 appError = throwError
-

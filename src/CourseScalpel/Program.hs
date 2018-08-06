@@ -39,8 +39,8 @@ import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
 --- Program ---
 
 data Program = Program
-  { programCode :: !Code
-  , programSlug :: !Slug
+  { code :: !Code
+  , slug :: !Slug
   } deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 instance Arbitrary Program where

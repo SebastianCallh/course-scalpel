@@ -13,3 +13,5 @@ import           CourseScalpel.Web.Url (Url (..))
 
 scrapeError :: HasError m => Url -> Text -> m a
 scrapeError url msg = appError $ ScrapeError url msg
+
+

@@ -68,10 +68,14 @@ library
                      , CourseScalpel.App
                      , CourseScalpel.Course
                      , CourseScalpel.CoursePage
+                     , CourseScalpel.CoursePage.Header
+                     , CourseScalpel.CoursePage.Programs
+                     , CourseScalpel.CoursePage.Plan
                      , CourseScalpel.CourseProgram
+                     , CourseScalpel.Credits
                      , CourseScalpel.Error
                      , CourseScalpel.Examination
-                     , CourseScalpel.Parsing
+                     , CourseScalpel.Parser
                      , CourseScalpel.Program
                      , CourseScalpel.ProgramPage
                      , CourseScalpel.Time

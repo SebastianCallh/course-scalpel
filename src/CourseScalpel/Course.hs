@@ -16,60 +16,63 @@ module CourseScalpel.Course
   , Examinator (..)
   , Content (..)
   , Subject (..)
+  , Time (..)
   ) where
 
-import           CourseScalpel.Examination     (Credits (..), Examination)
-import qualified CourseScalpel.Examination     as Examination
-import           CourseScalpel.Web             (Url)
+
 import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.Data                     (Typeable)
 import           Data.Ord                      (comparing)
 import           Data.Text                     (Text)
 import           Data.Text.Prettyprint.Doc     hiding (space)
-import           Data.Word                     (Word)
 import           GHC.Generics                  (Generic)
 import           Test.QuickCheck               (Arbitrary (..))
 import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
                                                 genericArbitrary)
 
+import           CourseScalpel.Examination     (Credits (..), Examination)
+import qualified CourseScalpel.Examination     as Examination
+import           CourseScalpel.Time            (Time (..))
+import           CourseScalpel.Web             (Url)
+
 --- Course ---
 
 data Course = Course
-  { courseCode          :: !Text
-  , courseName          :: !Text
-  , courseLevel         :: !Level
-  , courseAreas         :: ![Area]
-  , courseInstitution   :: !Institution
-  , courseFields        :: ![Field]
-  , coursePrerequisites :: !(Maybe Prerequisites)
-  , courseExaminator    :: !(Maybe Examinator)
-  , courseExaminations  :: ![Examination]
-  , courseContent       :: !Content
-  , courseSubjects      :: ![Subject]
-  , courseUrls          :: ![Url]
-  , courseSelfStudyTime :: !Word
-  , courseScheduledTime :: !Word
+  { code          :: !Text
+  , name          :: !Text
+  , level         :: !Level
+  , areas         :: ![Area]
+  , institution   :: !Institution
+  , fields        :: ![Field]
+  , prerequisites :: !(Maybe Prerequisites)
+  , examinator    :: !(Maybe Examinator)
+  , examinations  :: ![Examination]
+  , content       :: !Content
+  , subjects      :: ![Subject]
+  , urls          :: ![Url]
+  , selfStudyTime :: !Time
+  , scheduledTime :: !Time
   } deriving (Show, Read, Typeable, Generic, FromJSON, ToJSON)
 
 instance Eq Course where
-  (==) a b = EQ == comparing courseCode a b
+  (==) a b = EQ == comparing code a b
 
 instance Ord Course where
-  (<=) a b = LT == comparing courseCode a b
+  (<=) a b = LT == comparing code a b
 
 instance Pretty Course where
   pretty course@Course{..}
     = mconcat
-    [ pretty courseCode
+    [ pretty code
     , ": "
-    , pretty courseName
+    , pretty name
     , ", "
-    , pretty $ courseCredits course
+    , pretty $ credits course
     ]
 
-courseCredits :: Course -> Credits
-courseCredits =
-  foldMap Examination.credits . courseExaminations
+credits :: Course -> Credits
+credits =
+  foldMap Examination.credits . examinations
 
 --- Area ---
 
@@ -99,16 +102,6 @@ data Area
 
 newtype Content = Content { getContent :: Text }
   deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
-
---- Time ---
-
--- | Slightly different from the other parsers as it
---   parses both self study and scheduled time. They are in the
---   same section in the DOM so this is the most convenient way.
-data Time = Time
-  { timeSelfStudy :: Word
-  , timeScheduled :: Word
-  } deriving (Show, Read, Eq, Ord, Typeable, Generic, FromJSON, ToJSON)
 
 --- Examinator ---
 

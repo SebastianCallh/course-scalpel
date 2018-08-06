@@ -2,8 +2,8 @@ module CourseScalpel
   ( ScrapeProgramRes (..)
   , ScrapeCourseRes (..)
   , CourseScalpelRunner
-  , Program (..)
-  , Course (..)
+  , module CourseScalpel.Program
+  , module CourseScalpel.Course
   , scrapeProgram
   , scrapeCourse
   , runCourseScalpel
@@ -18,9 +18,9 @@ import           Data.Aeson                (ToJSON (..))
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
   
 import           CourseScalpel.App         (App, Config (..), runApp)
-import           CourseScalpel.Course      (Course (..))
+import           CourseScalpel.Course      (Course)
 import           CourseScalpel.Program     (Program (..))
-import qualified CourseScalpel.Program as  Program
+import qualified CourseScalpel.Program     as Program
 import qualified CourseScalpel.CoursePage  as CoursePage
 import           CourseScalpel.CoursePage  (MonadCoursePage (..))
 import           CourseScalpel.Error       (AppError, HasError)
@@ -62,7 +62,7 @@ scrapeProgram
   -> m ScrapeProgramRes
 scrapeProgram program = do
   let url = Url $ "https://liu.se/studieinfo/program/"
-        <> Program.slugToText (programSlug program)
+        <> Program.slugToText (Program.slug program)
         
   programPage <- scrapeProgramPage url
   let courseUrls    = ProgramPage.courseUrls programPage
@@ -85,7 +85,7 @@ instance Pretty ScrapeCourseRes where
     =  "Course scraped: "
     <> pretty course
   pretty (ScrapeCourseParseError err)
-    =  "Parsing error: "
+    =  "Parse error: "
     <> pretty err
   pretty (ScrapeCourseNetworkError err)
     =  "Network error: "

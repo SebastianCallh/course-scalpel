@@ -1,9 +1,11 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module CourseScalpel.Time
-  ( MonadTime (..)
-  , Year (..)
+  ( Time (..)
   ) where
 
-class Monad m => MonadTime m where
-  currentYear :: m Year
+import           Data.Aeson (FromJSON, ToJSON)
+import           Data.Word  (Word)
 
-newtype Year = Year { getYear :: Word }
+newtype Time = Time { getTime :: Word }
+  deriving (Show, Read, Eq, Ord, FromJSON, ToJSON, Num)
