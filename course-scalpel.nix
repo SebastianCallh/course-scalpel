@@ -1,8 +1,8 @@
-{ mkDerivation, aeson, base, containers, either, ghcid, hlint
-, hoogle, hspec, HUnit, megaparsec, monad-logger, mtl
-, optparse-applicative, parallel, parser-combinators, prettyprinter
-, QuickCheck, quickcheck-arbitrary-adt, safe, scalpel, split
-, stdenv, text, time, turtle, validation
+{ mkDerivation, aeson, base, containers, either, hlint, hspec
+, HUnit, megaparsec, monad-logger, mtl, optparse-applicative
+, parallel, parser-combinators, prettyprinter, QuickCheck
+, quickcheck-arbitrary-adt, safe, scalpel, split, stdenv, text
+, time, turtle, validation
 }:
 mkDerivation {
   pname = "course-scalpel";
@@ -17,10 +17,9 @@ mkDerivation {
     validation
   ];
   executableHaskellDepends = [
-    base containers monad-logger mtl optparse-applicative prettyprinter
-    scalpel split text time
+    aeson base containers monad-logger mtl optparse-applicative
+    prettyprinter scalpel split text time
   ];
-  executableToolDepends = [ ghcid hoogle ];
   testHaskellDepends = [
     base hspec HUnit mtl QuickCheck scalpel text validation
   ];
