@@ -33,12 +33,9 @@ import           CourseScalpel             (CourseScalpelRunner,
                                             runCourseScalpel, scrapeCourse,
                                             scrapeProgram)
 import           CourseScalpel.Error       (AppError)
-import           CourseScalpel.Program     (Code (..), Program (..), engD,
-                                            engDPU, engED, engEMM, engI,
-                                            engIInt, engIT, engKB, engKTS, engM,
-                                            engMT, engMed, engTB, engU, engY,
-                                            engYInt, programCode,
-                                            supportedPrograms)
+
+import           CourseScalpel.Program     (Code (..), Program (..))
+import qualified CourseScalpel.Program     as Program
 
 
 data CliError
@@ -102,7 +99,7 @@ scrapePrograms' runner programs = do
   _logFilePath <- asks optionsLogFile
   putLn "Scraping programs..."
   results <- forM programs $ \program -> do
-    putLn $ "Scraping program " <> show (programCode program)
+    putLn $ "Scraping program " <> show (Program.code program)
     liftIO . runner $ scrapeProgram program
 
   outputResult results
@@ -167,22 +164,22 @@ targetParser =
 
     programs :: String -> Either String [Program]
     programs = traverse (program . fmap toLower) . splitOn " "
-    program "d"    = pure engD
-    program "u"    = pure engU
-    program "i"    = pure engI
-    program "iint" = pure engIInt
-    program "it"   = pure engIT
-    program "y"    = pure engY
-    program "yint" = pure engYInt
-    program "med"  = pure engMed
-    program "ed"   = pure engED
-    program "mt"   = pure engMT
-    program "kts"  = pure engKTS
-    program "m"    = pure engM
-    program "emm"  = pure engEMM
-    program "tb"   = pure engTB
-    program "dpu"  = pure engDPU
-    program "kb"   = pure engKB
+    program "d"    = pure Program.engD
+    program "u"    = pure Program.engU
+    program "i"    = pure Program.engI
+    program "iint" = pure Program.engIInt
+    program "it"   = pure Program.engIT
+    program "y"    = pure Program.engY
+    program "yint" = pure Program.engYInt
+    program "med"  = pure Program.engMed
+    program "ed"   = pure Program.engED
+    program "mt"   = pure Program.engMT
+    program "kts"  = pure Program.engKTS
+    program "m"    = pure Program.engM
+    program "emm"  = pure Program.engEMM
+    program "tb"   = pure Program.engTB
+    program "dpu"  = pure Program.engDPU
+    program "kb"   = pure Program.engKB
     program x      = Left $ "Can not parse Program from: " <> x
 
     courseTarget = strOption
@@ -193,7 +190,7 @@ targetParser =
          [ "Target course to scrape.\n"
          , "Example: \"-p d\", \"-p 'd it u'\"\n"
          , "Available programs: "
-         , unwords $ writeProgram <$> supportedPrograms
+         , unwords $ writeProgram <$> Program.supportedPrograms
          ])
       )
 
