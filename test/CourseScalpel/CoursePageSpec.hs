@@ -79,7 +79,7 @@ spec =
            , CoursePage.content  = Course.Content "Course content"
            , CoursePage.subjects = [Course.SubjectMaths]
            , CoursePage.urls     = [Url "http://www.mai.liu.se/und/kurser/index-amne-tm.html"]
-           , CoursePage.selfStudyTime  = Course.Time 80
-           , CoursePage.scheduledTime  = Course.Time 80
+           , CoursePage.selfStudyTime  = Course.Hours 80
+           , CoursePage.scheduledTime  = Course.Hours 80
            }
          })

@@ -6,8 +6,8 @@ module CourseScalpel.CoursePage.Programs
 
 import           Data.Text                   (Text)
 import qualified Data.Text                   as T
-import           Text.HTML.Scalpel           hiding (scrape)
-import           Text.Megaparsec             hiding (parse)
+import           Text.HTML.Scalpel
+import           Text.Megaparsec
 import           Text.Megaparsec.Char
 
 import           CourseScalpel.CourseProgram (Block (..), CourseProgram (..),

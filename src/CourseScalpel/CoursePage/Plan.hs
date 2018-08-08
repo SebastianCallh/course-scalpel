@@ -17,7 +17,7 @@ import qualified Data.Map                  as M
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Text.Prettyprint.Doc hiding (space)
-import           Text.HTML.Scalpel         hiding (scrape)
+import           Text.HTML.Scalpel
 import           Text.Megaparsec           hiding (parse)
 import qualified Text.Megaparsec           as MP
 import           Text.Megaparsec.Char
@@ -27,7 +27,7 @@ import           CourseScalpel.Examination (Examination (..))
 import qualified CourseScalpel.Examination as Examination
 import           CourseScalpel.Parser      (Parser)
 import qualified CourseScalpel.Parser      as Parser
-import           CourseScalpel.Time        (Time (..))
+import           CourseScalpel.Time        (Hours (..))
 import           CourseScalpel.Web.Url     (Url (..))
 
 data Plan = Plan
@@ -42,8 +42,8 @@ data Plan = Plan
   , content       :: !Course.Content
   , subjects      :: ![Course.Subject]
   , urls          :: ![Url]
-  , selfStudyTime :: !Time
-  , scheduledTime :: !Time
+  , selfStudyTime :: !Hours
+  , scheduledTime :: !Hours
   } deriving (Show, Eq)
 
 scraper :: Scraper Text (Parser.Result Plan)
@@ -200,12 +200,12 @@ parseSubjects txt = do
 -- | Slightly different from the other parsers as it
 --   parses both self study and scheduled time. They are in the
 --   same section in the DOM so this is the most convenient way.
-parseTime :: Text -> Parser.Result (Time, Time)
+parseTime :: Text -> Parser.Result (Hours, Hours)
 parseTime x =
   either (const $ Parser.failure x "Hours") pure $
   MP.parse parser "" (T.strip x)
     where
-      parser :: Parser (Time, Time)
+      parser :: Parser (Hours, Hours)
       parser = do
         scheduled <- fmap read $ prelTxt
           *> optional (char '-')
@@ -215,7 +215,7 @@ parseTime x =
           *> optional (char '-')
           *> some digitChar
           <* string " h"
-        pure (Time selfStudy, Time scheduled)
+        pure (Hours selfStudy, Hours scheduled)
 
       prelTxt = string "Preliminary scheduled hours: " <|>
                 string "Preliminär schemalagd tid: "

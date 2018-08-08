@@ -5,8 +5,8 @@ import qualified Data.Text.IO                  as T
 import           Test.Hspec
 
 import           CourseScalpel.Course          (Area (..), Credits (..),
-                                                Field (..), Institution (..),
-                                                Subject (..), Time (..))
+                                                Field (..), Hours (..),
+                                                Institution (..), Subject (..))
 import qualified CourseScalpel.CoursePage.Plan as Plan
 import           CourseScalpel.Examination     (Examination (..))
 import qualified CourseScalpel.Examination     as Examination
@@ -242,13 +242,13 @@ spec = do
     describe "parse CourseTime" $ do
       it "parses markup with padding" $ do
         input <- T.readFile "test/markup/hours-padding.html"
-        let expected = Right (Time 800, Time 900)
+        let expected = Right (Hours 800, Hours 900)
             actual   = Plan.parseTime input
         actual `shouldBe` expected
 
       it "parses markup without padding" $ do
         input <- T.readFile "test/markup/hours.html"
-        let expected = Right (Time 800, Time 900)
+        let expected = Right (Hours 800, Hours 900)
             actual   = Plan.parseTime input
         actual `shouldBe` expected
 
@@ -256,7 +256,7 @@ spec = do
       -- it simply has a minus sign in front of the course time.
       it "parses incorrect markup with a minus sign" $ do
         let input = "Preliminary scheduled hours: 32 h <br>Recommended self-study hours: -5 h"
-        let expected = Right (Time 5, Time 32)
+        let expected = Right (Hours 5, Hours 32)
             actual   = Plan.parseTime input
         actual `shouldBe` expected
 

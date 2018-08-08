@@ -10,7 +10,7 @@ import           Text.Megaparsec           hiding (parse)
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec           as MP
 import qualified Data.Text                 as T
-import           Text.HTML.Scalpel         hiding (scrape)
+import           Text.HTML.Scalpel
 
 import           CourseScalpel.Parser      (Parser)
 import qualified CourseScalpel.Parser      as Parser

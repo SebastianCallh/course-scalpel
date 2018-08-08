@@ -16,7 +16,7 @@ module CourseScalpel.Course
   , Examinator (..)
   , Content (..)
   , Subject (..)
-  , Time (..)
+  , Hours (..)
   ) where
 
 
@@ -24,7 +24,7 @@ import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.Data                     (Typeable)
 import           Data.Ord                      (comparing)
 import           Data.Text                     (Text)
-import           Data.Text.Prettyprint.Doc     hiding (space)
+import           Data.Text.Prettyprint.Doc
 import           GHC.Generics                  (Generic)
 import           Test.QuickCheck               (Arbitrary (..))
 import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
@@ -32,7 +32,7 @@ import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
 
 import           CourseScalpel.Examination     (Credits (..), Examination)
 import qualified CourseScalpel.Examination     as Examination
-import           CourseScalpel.Time            (Time (..))
+import           CourseScalpel.Time            (Hours (..))
 import           CourseScalpel.Web             (Url)
 
 --- Course ---
@@ -50,8 +50,8 @@ data Course = Course
   , content       :: !Content
   , subjects      :: ![Subject]
   , urls          :: ![Url]
-  , selfStudyTime :: !Time
-  , scheduledTime :: !Time
+  , selfStudyTime :: !Hours
+  , scheduledTime :: !Hours
   } deriving (Show, Read, Typeable, Generic, FromJSON, ToJSON)
 
 instance Eq Course where
