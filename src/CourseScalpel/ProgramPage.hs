@@ -17,7 +17,7 @@ import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Text.Prettyprint.Doc
-import           Data.Validation           (Validation (..), toEither)
+--import           Data.Validation           (Validation (..), toEither)
 import           Text.HTML.Scalpel         hiding (scrape)
 import           Text.Megaparsec           (some, (<|>))
 import qualified Text.Megaparsec           as MP
@@ -54,15 +54,18 @@ instance Pretty Error where
     <> pretty url
     <> pretty msg
 
-type Result a = Validation [Error] a
+--newtype Validation a = Monoid e => Validation e a  
+--släng validation dep och bygg en egen här
+
+type Result a = Either [Error] a
 
 type Message = Text
 
-parseError :: Text -> Message -> Validation [Error] a
-parseError txt msg = Failure [ParseError txt msg]
+parseError :: Text -> Message -> Result a
+parseError txt msg = Left [ParseError txt msg]
 
-networkError :: Url -> Message -> Validation [Error] a
-networkError url msg = Failure [NetworkError url msg]
+networkError :: Url -> Message -> Result a
+networkError url msg = Left [NetworkError url msg]
 
 scrape :: (HasError m, MonadIO m) => Url -> m ProgramPage
 scrape url = do
@@ -71,7 +74,7 @@ scrape url = do
         <$> (contentName  <$> content)
         <*> (contentSpecs <$> content)
 
-  case toEither eProgramPage of
+  case eProgramPage of
     Left  errors -> scrapeError url $ concatErrorMessages errors
     Right page   -> pure page
 

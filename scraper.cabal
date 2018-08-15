@@ -47,7 +47,6 @@ library
                      , aeson
                      , containers
                      , either
-                     , hlint
                      , hspec
                      , megaparsec
                      , monad-logger 
@@ -60,7 +59,7 @@ library
                      , scalpel
                      , text
                      , turtle
-                     , validation
+--                     , validation
   exposed-modules:     CourseScalpel
                      , CourseScalpel.App
                      , CourseScalpel.Course
@@ -95,7 +94,7 @@ test-suite course-scalpel-test
                 , hspec
                 , scalpel
                 , text
-                , validation
+--                , validation
   other-modules:  CourseScalpel.CoursePageSpec
                 , CourseScalpel.ProgramPageSpec
   default-language: Haskell2010

@@ -2,7 +2,6 @@ module CourseScalpel.ProgramPageSpec where
 
 import           Data.Maybe                (fromJust)
 import           Data.Text.IO              (readFile)
-import           Data.Validation           (Validation (..))
 import           Prelude                   hiding (readFile)
 import           Test.Hspec
 import           Text.HTML.Scalpel         (attrs, hasClass, scrapeStringLike,
@@ -19,7 +18,7 @@ spec =
            scrapeStringLike markup ProgramPage.contentScraper
 
      ProgramPage.contentName <$> eProgramPageContent `shouldBe`
-       Success "Civilingenjör i datateknik"
+       Right "Civilingenjör i datateknik"
 
      let eSpecSecs = ProgramPage.contentSpecs <$> eProgramPageContent
      let eUrls = foldMap ProgramPage.specSecUrls <$> eSpecSecs
