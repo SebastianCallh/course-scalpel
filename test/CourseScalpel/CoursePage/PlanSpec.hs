@@ -52,7 +52,7 @@ spec = do
       it "fails to parse non-valid areas" $ do
         let input    = "not areas"
             actual   = Plan.parseAreas input
-            expected = Parser.failure input "Areas"
+            expected = Parser.parseError input "Areas"
         actual `shouldBe` expected
 
   describe "parseExaminations" $ do
@@ -95,7 +95,7 @@ spec = do
     it "failes to parse invalid examinations" $ do
       let input    = "not examinations"
           actual   = Plan.parseExaminations input
-          expected = Parser.failure input "Examinations"
+          expected = Parser.parseError input "Examinations"
       actual `shouldBe` expected
 
     it "parses expected markup" $ do
@@ -155,7 +155,7 @@ spec = do
 
       it "fails to parse illegal values" $ do
         let input    = "not a field"
-            expected = sequenceA [Parser.failure input "Field"]
+            expected = sequenceA [Parser.parseError input "Field"]
             actual   = Plan.parseFields input
         actual `shouldBe` expected
 
@@ -196,7 +196,7 @@ spec = do
 
       it "fails to parse non-valid values" $ do
         let input    = "not an institution"
-            expected = Parser.failure input "Institution"
+            expected = Parser.parseError input "Institution"
             actual   = Plan.parseInstitution input
         actual `shouldBe` expected
 
@@ -218,7 +218,7 @@ spec = do
 
       it "fails to parse non-valid values" $ do
         let input    = "not a gradescale"
-            expected = Parser.failure input "Grading"
+            expected = Parser.parseError input "Grading"
             actual   = Plan.parseGrading input
         actual `shouldBe` expected
 
@@ -237,7 +237,7 @@ spec = do
 
       it "fails to parse non-numeric value" $ do
         let input = "not credit"
-        Plan.parseCredits input `shouldBe` Parser.failure input "Credits"
+        Plan.parseCredits input `shouldBe` Parser.parseError input "Credits"
 
     describe "parse CourseTime" $ do
       it "parses markup with padding" $ do
@@ -262,7 +262,7 @@ spec = do
 
       it "fails on non parsable input" $ do
         let input    = "not hours"
-            expected = Parser.failure input "Hours"
+            expected = Parser.parseError input "Hours"
             actual   = Plan.parseTime input
         actual `shouldBe` expected
 

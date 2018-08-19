@@ -1,62 +1,75 @@
-{-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module CourseScalpel.CoursePage
-  ( CoursePage (..)
+  ( CoursePage
   , MonadCoursePage (..)
-  , module SubMods
+  , module X
   , scrape
   , scraper
-  , toCourse
+  , course
+  , occasions
   ) where
 
+import           CourseScalpel.CoursePage.Header   as X (Header (..))
+import           CourseScalpel.CoursePage.Occasion as X (Occasion (..))
+import           CourseScalpel.CoursePage.Plan     as X (Plan (..))
 
+import           Control.Monad.IO.Class    (MonadIO, liftIO)
+import           Data.Semigroup ((<>))
+import           Data.Text.Prettyprint.Doc (Pretty, pretty)
+import           Data.Aeson                (ToJSON, FromJSON)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Text.HTML.Scalpel         hiding (scrape)
+import           GHC.Generics (Generic)
 
-import           CourseScalpel.Course      (Course)
-import qualified CourseScalpel.Course      as Course
-import qualified CourseScalpel.Parser as Parser
-import           CourseScalpel.Web         (Url (..))
-
-import           CourseScalpel.CoursePage.Header   as SubMods (Header (..))
+import           CourseScalpel.Course              (Course)
+import qualified CourseScalpel.Course              as Course
+import qualified CourseScalpel.Parser              as Parser
+import           CourseScalpel.Web                 (Url (..), networkError)
 import qualified CourseScalpel.CoursePage.Header   as Header
-import           CourseScalpel.CoursePage.Programs as SubMods (Programs (..))
-import qualified CourseScalpel.CoursePage.Programs as Programs
-import           CourseScalpel.CoursePage.Plan     as SubMods (Plan (..))
+import qualified CourseScalpel.CoursePage.Occasion as Occasion
 import qualified CourseScalpel.CoursePage.Plan     as Plan
 
 data CoursePage = CoursePage
-  { header   :: !Header
-  , programs :: !Programs
-  , plan     :: !Plan
-  } deriving (Show, Eq)
+  { header    :: !Header
+  , occasions :: ![Occasion]
+  , plan      :: !Plan
+  } deriving (Show, Eq, Generic)
 
+instance FromJSON CoursePage
+instance ToJSON CoursePage
+
+instance Pretty CoursePage where
+  pretty CoursePage{..}
+    =  pretty header
+    <> pretty occasions
+    <> pretty plan
+  
 class Monad m => MonadCoursePage m where
-  scrapeCoursePage :: Url -> m CoursePage
+  scrapeCoursePage :: Url -> m (Parser.Result CoursePage)
  
-scrape :: Url -> IO (Parser.Result CoursePage)
+scrape :: MonadIO m => Url -> m (Parser.Result CoursePage)
 scrape url =
-  scrapeURL (T.unpack $ getUrl url) scraper >>= \case
-    Nothing          -> pure . Left $ Parser.NetworkError url
+  liftIO $ scrapeURL (T.unpack $ getUrl url) scraper >>= \case
+    Nothing          -> pure $ networkError url
     Just eCoursePage -> pure eCoursePage
 
 scraper :: Scraper Text (Parser.Result CoursePage)
 scraper = do
-  header   <- Header.scraper
-  programs <- Programs.scraper
-  plan     <- Plan.scraper
+  header    <- Header.scraper
+  occasions <- Occasion.scraper
+  plan      <- Plan.scraper
   pure $ CoursePage
     <$> header
-    <*> programs
+    <*> occasions
     <*> plan
 
-toCourse :: CoursePage ->  Course
-toCourse CoursePage{..} = Course.Course
+course :: CoursePage ->  Course
+course CoursePage{..} = Course.Course
   { Course.code          = Header.code        header
   , Course.name          = Header.name        header
   , Course.level         = Plan.level         plan

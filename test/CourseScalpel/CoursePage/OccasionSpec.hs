@@ -1,9 +1,9 @@
-module CourseScalpel.CoursePage.ProgramsSpec where
+module CourseScalpel.CoursePage.OccasionSpec where
 
 import           Test.Hspec
 
-import qualified CourseScalpel.CoursePage.Programs as Programs
-import           CourseScalpel.CourseProgram       (Block (..))
+import           CourseScalpel.CoursePage.Occasion (Block (..))
+import qualified CourseScalpel.CoursePage.Occasion as Occasion
 import qualified CourseScalpel.Parser              as Parser
 
 spec :: SpecWith ()
@@ -19,11 +19,11 @@ spec =
               , [BlockFour]
               , [BlockNone]
               ]
-        Programs.parseBlocks input `shouldBe` expected
+        Occasion.parseBlocks input `shouldBe` expected
 
       it "parses multiple blocks correctly" $ do
         let input    = "-, 2"
-            actual   = Programs.parseBlocks input
+            actual   = Occasion.parseBlocks input
             expected = Right
               [ [BlockNone]
               , [BlockTwo]
@@ -32,7 +32,7 @@ spec =
 
       it "parses multiple blocks in one period correctly" $ do
         let input    = "3/4"
-            actual   = Programs.parseBlocks input
+            actual   = Occasion.parseBlocks input
             expected = Right
               [[ BlockThree
               , BlockFour
@@ -41,7 +41,7 @@ spec =
 
       it "fails to parse invalid block" $ do
         let input    = "not a block"
-            expected = sequenceA [Parser.failure input "Blocks"]
-            actual   = Programs.parseBlocks input
+            expected = sequenceA [Parser.parseError input "Blocks"]
+            actual   = Occasion.parseBlocks input
         actual `shouldBe` expected
 

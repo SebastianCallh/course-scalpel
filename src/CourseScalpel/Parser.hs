@@ -1,38 +1,18 @@
 module CourseScalpel.Parser
   ( Parser
   , Result
-  , Error (..)
-  , failure
+  , parseError
   , takeMay
   , sanitize
   , nonEmpty
   ) where
 
-import           Data.Semigroup        ((<>))
-import           Data.Text             (Text)
-import qualified Data.Text             as T
-import           Text.Megaparsec       (Parsec)
-import           Text.Megaparsec       hiding (failure, parse)
-import qualified Text.Megaparsec       as MP
+import           Data.Text           (Text)
+import qualified Data.Text           as T
+import           Text.Megaparsec     (Parsec)
+import qualified Text.Megaparsec     as MP
 
-import           CourseScalpel.Web.Url (Url (..))
-
-data Error
-  = ParseError Text Text
-  | NetworkError Url
-  | UnsupportedProgram Text
-  deriving (Eq, Ord)
-
-instance Show Error where
-  show = showErrorComponent
-
-instance ShowErrorComponent Error where
-  showErrorComponent (ParseError txt typ) =
-    T.unpack $ "Could not parse '" <> txt <> "' as " <> typ <> "."
-  showErrorComponent (UnsupportedProgram slug) =
-    T.unpack $ "No supported program for slug " <> slug <> "."
-  showErrorComponent (NetworkError url) =
-    T.unpack $ "Could not connect to " <> getUrl url <> "."
+import           CourseScalpel.Error (Error, parseError)
 
 type Parser = Parsec Error Text
 
@@ -54,9 +34,6 @@ sanitize = T.strip . T.filter (not . isTrash)
 nonEmpty :: Text -> Text -> Parser [a] -> Either Error [a]
 nonEmpty txt typ parser =
   case MP.parse parser "" txt of
-    Left  _  -> failure txt typ
-    Right [] -> failure txt typ
+    Left  _  -> parseError txt typ
+    Right [] -> parseError txt typ
     Right a  -> pure a
-
-failure :: Text -> Text -> Either Error a
-failure txt typ = Left $ ParseError txt typ

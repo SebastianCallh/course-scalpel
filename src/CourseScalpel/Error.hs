@@ -2,76 +2,77 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module CourseScalpel.Error
-  ( AppError (..)
-  , HasError
-  , appError
+  ( Error
+  , MonadError
+  , networkError
+  , parseError
+  , unsupportedProgramError
+  , filterUnsupportedProgramErrors
   ) where
 
-import           Control.Monad.Except      (MonadError, throwError)
-import           Data.Aeson                (ToJSON (..), object, (.=))
+import qualified Control.Monad.Except      as Except
+import           CourseScalpel.Web.Url     (Url (..))
+import           Data.Aeson                (FromJSON, ToJSON)
 import           Data.Semigroup            (Semigroup (..), (<>))
 import           Data.Text                 (Text)
+import qualified Data.Text                 as T
 import           Data.Text.Prettyprint.Doc
+import           GHC.Generics              (Generic)
+import           Prelude                   hiding (error)
 
-import           CourseScalpel.Web.Url     (Url (..))
+type Slug    = Text
+type Type    = Text
+data Error
+  = ParseError   Text Type
+  | NetworkError Url
+  | UnsupportedProgramError Slug
+  deriving (Eq, Ord, Generic)
 
-type ErrorMessage = Text
+instance ToJSON Error
+instance FromJSON Error
 
-data AppError
-  = ParseError  Text ErrorMessage
-  | ScrapeError Url  ErrorMessage
-  | MultipleErrors [AppError]
-  deriving (Show, Eq)
+instance Show Error where
+  show = T.unpack . toText
 
-instance ToJSON AppError where
-  toJSON (ParseError txt msg)  = object
-    [ "type" .= ("parse-error" :: Text)
-    , "input"   .= txt
-    , "message" .= toJSON msg
-    ]
+instance Pretty Error where
+  pretty = pretty . toText
 
-  toJSON (ScrapeError url msg) = object
-    [ "type" .= ("scrape-error" :: Text)
-    , "url"   .= url
-    , "message" .= toJSON msg
-    ]
+parseError :: MonadError m => Text -> Type -> m a
+parseError txt typ = error $ ParseError txt typ
 
-  toJSON (MultipleErrors errs) = toJSON errs
+networkError :: MonadError m => Url -> m a
+networkError = error . NetworkError
 
-instance Semigroup AppError where
-  (<>) (MultipleErrors es) (ParseError txt msg)  = MultipleErrors $ ParseError  txt msg : es
-  (<>) (ParseError txt msg)  (MultipleErrors es) = MultipleErrors $ ParseError  txt msg : es
-  (<>) (MultipleErrors es) (ScrapeError url msg) = MultipleErrors $ ScrapeError url msg : es
-  (<>) (ScrapeError url msg) (MultipleErrors es) = MultipleErrors $ ScrapeError url msg : es
-  (<>) (MultipleErrors es) (MultipleErrors es')  = MultipleErrors $ es <> es'
-  (<>) (ParseError txt msg)  (ParseError txt' msg')  =
-    MultipleErrors [ParseError txt msg, ParseError txt' msg']
-  (<>) (ScrapeError url msg) (ScrapeError url' msg') =
-    MultipleErrors [ScrapeError url msg, ScrapeError url' msg']
-  (<>) (ParseError txt msg)  (ScrapeError url msg')  =
-    MultipleErrors [ParseError txt msg, ScrapeError url msg']
-  (<>) (ScrapeError url msg) (ParseError txt msg')   =
-    MultipleErrors [ScrapeError url msg, ParseError txt msg']
+unsupportedProgramError :: MonadError m => Slug -> m a
+unsupportedProgramError = error . UnsupportedProgramError
 
-instance Pretty AppError where
-  pretty (ParseError  txt msg)
-    =  "Error parsing "
-    <> pretty txt
-    <> ". Error message: "
-    <> pretty msg
+toText :: Error -> Text
+toText (ParseError txt typ)
+  =  "Could not parse '"
+  <> txt
+  <> "' as "
+  <> typ
+  <> "."
 
-  pretty (ScrapeError url msg)
-    =  "Error scraping "
-    <> pretty url
-    <> pretty (". Error message: " :: Text)
-    <> pretty msg
+toText (UnsupportedProgramError slug)
+  =  "No supported program for slug "
+  <> slug
+  <> "."
 
-  pretty (MultipleErrors errors) =
-    pretty errors
+toText (NetworkError (Url url))
+  =  "Could not connect to "
+  <> url
+  <> "."
 
 -- | May want to change error handling, so it gets its own type
-type HasError = MonadError AppError
+type MonadError = Except.MonadError Error
 
 -- | May want to change error handling so wrap throwError
-appError :: HasError m => AppError -> m a
-appError = throwError
+error :: MonadError m => Error -> m a
+error = Except.throwError
+
+filterUnsupportedProgramErrors :: [Either Error a] -> [Either Error a]
+filterUnsupportedProgramErrors = filter supportedProgram
+  where
+    supportedProgram (Left (UnsupportedProgramError _)) = False
+    supportedProgram _                                  = True

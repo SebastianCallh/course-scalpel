@@ -10,7 +10,6 @@ module CourseScalpel.App
 
 import           Control.Monad.Except      (ExceptT, MonadError, runExceptT)
 import           Control.Monad.IO.Class    (liftIO)
-import qualified Data.Text                 as T
 
 import           Control.Monad.Logger      (LoggingT, MonadLogger,
                                             runFileLoggingT)
@@ -18,10 +17,9 @@ import           Control.Monad.Reader      (MonadIO, MonadReader, ReaderT,
                                             runReaderT)
 import           CourseScalpel.CoursePage  (MonadCoursePage (..))
 import qualified CourseScalpel.CoursePage  as CoursePage
-import           CourseScalpel.Error       (AppError (..))
+import           CourseScalpel.Error       (Error)
 import           CourseScalpel.ProgramPage (MonadProgramPage (..))
 import qualified CourseScalpel.ProgramPage as ProgramPage
-import           CourseScalpel.Web         (scrapeError)
 
 data Config = Config
   { configLogFile :: FilePath
@@ -29,19 +27,17 @@ data Config = Config
 
 --- App ---
 
-newtype App a = App { unApp :: ExceptT AppError (ReaderT Config (LoggingT IO)) a }
+newtype App a = App { unApp :: ExceptT Error (ReaderT Config (LoggingT IO)) a }
   deriving (Functor, Applicative, Monad, MonadIO,
-            MonadError AppError, MonadReader Config, MonadLogger)
+            MonadError Error, MonadReader Config, MonadLogger)
 
 instance MonadCoursePage App where
-  scrapeCoursePage url =
-    liftIO (CoursePage.scrape url) >>=
-    either (scrapeError url . T.pack . show) pure
+  scrapeCoursePage url = liftIO (CoursePage.scrape url)
 
 instance MonadProgramPage App where
   scrapeProgramPage = ProgramPage.scrape
 
-runApp :: Config -> App a -> IO (Either AppError a)
+runApp :: Config -> App a -> IO (Either Error a)
 runApp options = logRunner . readerRunner . runExceptT . unApp
   where
     logRunner      = runFileLoggingT $ configLogFile options

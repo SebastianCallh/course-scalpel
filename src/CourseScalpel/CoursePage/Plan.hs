@@ -12,11 +12,14 @@ module CourseScalpel.CoursePage.Plan
   , scraper
   ) where
 
+import           Data.Aeson                (FromJSON, ToJSON)
 import           Data.Map                  (Map)
 import qualified Data.Map                  as M
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
+import           Data.Text.Prettyprint.Doc (pretty)
 import           Data.Text.Prettyprint.Doc hiding (space)
+import           GHC.Generics              (Generic)
 import           Text.HTML.Scalpel
 import           Text.Megaparsec           hiding (parse)
 import qualified Text.Megaparsec           as MP
@@ -25,7 +28,7 @@ import           Text.Megaparsec.Char
 import qualified CourseScalpel.Course      as Course
 import           CourseScalpel.Examination (Examination (..))
 import qualified CourseScalpel.Examination as Examination
-import           CourseScalpel.Parser      (Parser)
+import           CourseScalpel.Parser      (Parser, parseError)
 import qualified CourseScalpel.Parser      as Parser
 import           CourseScalpel.Time        (Hours (..))
 import           CourseScalpel.Web.Url     (Url (..))
@@ -44,7 +47,13 @@ data Plan = Plan
   , urls          :: ![Url]
   , selfStudyTime :: !Hours
   , scheduledTime :: !Hours
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON Plan
+instance ToJSON Plan
+
+instance Pretty Plan where
+  pretty _ = "Not yet implemented."
 
 scraper :: Scraper Text (Parser.Result Plan)
 scraper = do
@@ -80,7 +89,7 @@ scraper = do
             Just section -> parse section
 
         makeError :: Text -> Parser.Result a
-        makeError secKey = Parser.failure
+        makeError secKey = parseError
           ("Empty section " <> secKey) "CoursePagePlan"
 
 --- Area ---
@@ -141,7 +150,7 @@ parseInstitution = parseInstitution' . T.strip
       pure Course.InstitutionITN
     parseInstitution' "Tekniska fakultetskansliet" =
       pure Course.InstitutionTekFak
-    parseInstitution' x = Parser.failure x "Institution"
+    parseInstitution' x = parseError x "Institution"
 
 --- Field ---
 
@@ -155,7 +164,7 @@ parseField "Tekniska omr\229det"                 = pure Course.FieldTechnical
 parseField "Naturvetenskapliga omr\229det"       = pure Course.FieldScience
 parseField "Samh\228llsvetenskapliga omr\229det" = pure Course.FieldSociety
 parseField "Juridiska området"                   = pure Course.FieldLaw
-parseField x                                     = Parser.failure x "Field"
+parseField x                                     = parseError x "Field"
 
 --- Prerequisites ---
 
@@ -202,7 +211,7 @@ parseSubjects txt = do
 --   same section in the DOM so this is the most convenient way.
 parseTime :: Text -> Parser.Result (Hours, Hours)
 parseTime x =
-  either (const $ Parser.failure x "Hours") pure $
+  either (const $ parseError x "Hours") pure $
   MP.parse parser "" (T.strip x)
     where
       parser :: Parser (Hours, Hours)
@@ -239,21 +248,21 @@ parseExaminations x =
     let mFieldList = scrapeStringLike x $
           chroot "table" $ innerHTMLs "tr"
     in case mFieldList of
-      Nothing        -> Parser.failure x "Examinations"
+      Nothing        -> parseError x "Examinations"
       Just fieldList -> traverse parseExamination fieldList
 
 parseExamination :: Text -> Parser.Result Examination
 parseExamination x =
     let mFields = scrapeStringLike x $ texts "td"
     in case mFields >>= Parser.takeMay 4 of
-      Nothing -> Parser.failure x "Examination"
+      Nothing -> parseError x "Examination"
       Just [code, description, grading, credits] ->
         Examination code
           <$> parseExaminationType code
           <*> pure description
           <*> parseGrading grading
           <*> parseCredits credits
-      Just _ ->  Parser.failure x "Examination"
+      Just _ ->  parseError x "Examination"
 
 --- ExaminationType ---
 
@@ -272,7 +281,7 @@ parseExaminationType x
   | "PRA"  `T.isPrefixOf` x = pure Examination.PROJ
   | "TEN"  `T.isPrefixOf` x = pure Examination.TEN
   | "UPG"  `T.isPrefixOf` x = pure Examination.UPG
-  | otherwise               = Parser.failure x "ExaminationType"
+  | otherwise               = parseError x "ExaminationType"
 
 --- Grading ---
 
@@ -284,7 +293,7 @@ parseGrading "U,G"          = pure Examination.Binary
 parseGrading "Deltagit (D)" = pure Examination.Presence
 parseGrading "D"            = pure Examination.Presence
 parseGrading ""             = pure Examination.Unspecified
-parseGrading x              = Parser.failure x "Grading"
+parseGrading x              = parseError x "Grading"
 
 --- Credits ---
 
@@ -292,7 +301,7 @@ parseCredits :: Text -> Parser.Result Course.Credits
 parseCredits x =
   either errorOut mkCredit $ MP.parse parser "" $ T.strip x
   where
-    errorOut = const $ Parser.failure x "Credits"
+    errorOut = const $ parseError x "Credits"
     mkCredit = pure . Course.Credits . read
     parser :: Parser String
     parser   = some floatChar <* optional (space *> string "hp")
@@ -306,7 +315,7 @@ parseLevel "G2X" = pure Course.LevelG2
 parseLevel "A"   = pure Course.LevelA
 parseLevel "A1X" = pure Course.LevelA1
 parseLevel "A2X" = pure Course.LevelA2
-parseLevel x     = Parser.failure x "Level"
+parseLevel x     = parseError x "Level"
 
 --- Url ---
 

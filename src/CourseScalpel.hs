@@ -1,52 +1,59 @@
 module CourseScalpel
-  ( ScrapeProgramRes (..)
-  , ScrapeCourseRes (..)
+  ( ScrapeProgramPageResult (..)
+  , ScrapeCoursePageResult (..)
   , CourseScalpelRunner
-  , module CourseScalpel.Program
-  , module CourseScalpel.Course
-  , scrapeProgram
-  , scrapeCourse
+  , module X
+  , scrapeProgramPage
+  , scrapeCoursePage
   , runCourseScalpel
   , mkConfig
   ) where
 
+import CourseScalpel.Course as X (Course)
+import CourseScalpel.Program as X (Program(..))
+import CourseScalpel.CoursePage as X (CoursePage, MonadCoursePage)
+import CourseScalpel.ProgramPage as X (MonadProgramPage)
+
 import           Control.Parallel.Strategies
-import           Control.Monad.IO.Class    (MonadIO)
-import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
-import           Data.Aeson                (ToJSON (..))
+import           Data.Semigroup            ((<>))
+import           Data.Aeson                (object, (.=),ToJSON (..))
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
-  
-import           CourseScalpel.App         (App, Config (..), runApp)
-import           CourseScalpel.Course      (Course)
-import           CourseScalpel.Program     (Program (..))
-import qualified CourseScalpel.Program     as Program
+import           Data.Either                (partitionEithers)
+
 import qualified CourseScalpel.CoursePage  as CoursePage
-import           CourseScalpel.CoursePage  (MonadCoursePage (..))
-import           CourseScalpel.Error       (AppError, HasError)
+import qualified CourseScalpel.Parser      as Parser
+import           CourseScalpel.App         (App, Config (..), runApp)
+import qualified CourseScalpel.Program     as Program
+import           CourseScalpel.Error       (Error, MonadError)
 import qualified CourseScalpel.ProgramPage as ProgramPage
-import           CourseScalpel.ProgramPage (MonadProgramPage (..))
 import           CourseScalpel.Web         (Url (..))
 
-data ScrapeProgramRes
-  = ScrapeProgramSuccess      [Course]
-  | ScrapeProgramNetworkError AppError
+data ScrapeProgramPageResult
+  = ScrapeProgramPageSuccess [Error] [CoursePage]
+  | ScrapeProgramPageError   Error
 
-instance ToJSON ScrapeProgramRes where
-  toJSON (ScrapeProgramSuccess courses)  = toJSON courses
-  toJSON (ScrapeProgramNetworkError err) = toJSON err
+instance ToJSON ScrapeProgramPageResult where
+  toJSON (ScrapeProgramPageSuccess errors pages) =
+    object [ "errors" .= toJSON errors
+           , "pages"  .= toJSON pages
+           ]
+
+  toJSON (ScrapeProgramPageError err) = toJSON err
   
-instance Pretty ScrapeProgramRes where
-  pretty (ScrapeProgramNetworkError err)
-    =  "Network error: "
+instance Pretty ScrapeProgramPageResult where
+  pretty (ScrapeProgramPageError err)
+    =  "Error scraping program page: "
     <> pretty err
 
-  pretty (ScrapeProgramSuccess courses)
-    = "Program scraped! "
+  pretty (ScrapeProgramPageSuccess errors courses)
+    = "Program scraped! Successfully scraped "
     <> pretty (length courses)
-    <> " courses were scraped successfully."
+    <> " and encoutered "
+    <> pretty (length errors)
+    <> " errors."
 
-type CourseScalpelRunner a = App a -> IO (Either AppError a)
+type CourseScalpelRunner a = App a -> IO (Either Error a)
 
 runCourseScalpel :: Config -> CourseScalpelRunner a
 runCourseScalpel = runApp
@@ -54,50 +61,56 @@ runCourseScalpel = runApp
 mkConfig :: FilePath -> Config
 mkConfig = Config
 
-scrapeProgram
+scrapeProgramPage
   :: forall m
-  . (MonadCoursePage m, MonadProgramPage m,
-     MonadIO m, HasError m)
+  . (MonadCoursePage m,
+     MonadProgramPage m,
+     MonadError m)
   => Program
-  -> m ScrapeProgramRes
-scrapeProgram program = do
-  let url = Url $ "https://liu.se/studieinfo/program/"
-        <> Program.slugToText (Program.slug program)
-        
-  programPage <- scrapeProgramPage url
-  let courseUrls    = ProgramPage.courseUrls programPage
-  let eCoursePages  = parMap rpar scrapeCoursePage courseUrls
-  courses <- traverse (fmap CoursePage.toCourse) eCoursePages
-  pure $ ScrapeProgramSuccess courses
-
-data ScrapeCourseRes
-  = ScrapeCourseSuccess      Course
-  | ScrapeCourseParseError   AppError
-  | ScrapeCourseNetworkError AppError
-
-instance ToJSON ScrapeCourseRes where
-  toJSON (ScrapeCourseSuccess course)   = toJSON course
-  toJSON (ScrapeCourseParseError   err) = toJSON err
-  toJSON (ScrapeCourseNetworkError err) = toJSON err
+  -> m ScrapeProgramPageResult
+scrapeProgramPage program =
+  ProgramPage.scrapeProgramPage url >>= \case
+    Left err          -> pure $ ScrapeProgramPageError err
+    Right programPage -> do    
+      eCoursePages <- sequence $ parMap rpar CoursePage.scrapeCoursePage $
+        ProgramPage.courseUrls programPage
     
-instance Pretty ScrapeCourseRes where
-  pretty (ScrapeCourseSuccess course)
-    =  "Course scraped: "
-    <> pretty course
-  pretty (ScrapeCourseParseError err)
+      pure $ uncurry ScrapeProgramPageSuccess $
+        partitionEithers eCoursePages
+
+  where
+    url = Url $ "https://liu.se/studieinfo/program/"
+          <> Program.slugToText (Program.slug program)
+        
+
+data ScrapeCoursePageResult
+  = ScrapeCoursePageSuccess      CoursePage
+  | ScrapeCoursePageParseError   Error
+  | ScrapeCoursePageNetworkError Error
+
+instance ToJSON ScrapeCoursePageResult where
+  toJSON (ScrapeCoursePageSuccess     page) = toJSON page
+  toJSON (ScrapeCoursePageParseError   err) = toJSON err
+  toJSON (ScrapeCoursePageNetworkError err) = toJSON err
+    
+instance Pretty ScrapeCoursePageResult where
+  pretty (ScrapeCoursePageSuccess page)
+    =  "Page: "
+    <> pretty page
+  pretty (ScrapeCoursePageParseError err)
     =  "Parse error: "
     <> pretty err
-  pretty (ScrapeCourseNetworkError err)
+  pretty (ScrapeCoursePageNetworkError err)
     =  "Network error: "
     <> pretty err
 
-type CourseCode = Text
-
-scrapeCourse
+scrapeCoursePage
   :: forall m
-  . (MonadCoursePage m, MonadIO m, HasError m)
-  => CourseCode
-  -> m ScrapeCourseRes
-scrapeCourse code = do
-  coursePage <- scrapeCoursePage . Url $ "https://liu.se/studieinfo/kurs/" <> code
-  pure . ScrapeCourseSuccess $ CoursePage.toCourse coursePage
+  . (MonadCoursePage m,
+     MonadError m)
+  => Text
+  -> m (Parser.Result CoursePage)
+scrapeCoursePage code =
+  CoursePage.scrapeCoursePage url
+  where
+    url = Url $"https://liu.se/studieinfo/kurs/" <> code

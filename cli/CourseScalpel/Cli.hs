@@ -24,23 +24,22 @@ import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import qualified Data.Text.Lazy            as L
-import           Data.Text.Prettyprint.Doc
+import           Data.Text.Prettyprint.Doc (Pretty, pretty)
 import           Options.Applicative
 
 import           CourseScalpel             (CourseScalpelRunner,
-                                            ScrapeCourseRes (..),
-                                            ScrapeProgramRes (..), mkConfig,
-                                            runCourseScalpel, scrapeCourse,
-                                            scrapeProgram)
-import           CourseScalpel.Error       (AppError)
+                                            ScrapeProgramPageResult (..),
+                                            mkConfig, runCourseScalpel,
+                                            scrapeCoursePage, scrapeProgramPage)
+import           CourseScalpel.CoursePage  (CoursePage)
+import           CourseScalpel.Error       (Error)
 
-import           CourseScalpel.Program     (Code (..), Program (..))
+import           CourseScalpel.Program     (Program (..))
 import qualified CourseScalpel.Program     as Program
-
 
 data CliError
   = ParseProgramError Text
-  | CourseScalpelError AppError
+  | CourseScalpelError Error
 
 instance Pretty CliError where
   pretty (ParseProgramError txt) =
@@ -92,7 +91,7 @@ cliApp = do
     TargetCourse   courseCode -> scrapeCourse'   runner courseCode
 
 scrapePrograms'
-  :: CourseScalpelRunner ScrapeProgramRes
+  :: CourseScalpelRunner ScrapeProgramPageResult
   -> [Program]
   -> CliApp ()
 scrapePrograms' runner programs = do
@@ -100,20 +99,20 @@ scrapePrograms' runner programs = do
   putLn "Scraping programs..."
   results <- forM programs $ \program -> do
     putLn $ "Scraping program " <> show (Program.code program)
-    liftIO . runner $ scrapeProgram program
+    liftIO . runner $ scrapeProgramPage program
 
   outputResult results
 
 scrapeCourse'
-  :: CourseScalpelRunner ScrapeCourseRes
+  :: CourseScalpelRunner (Either Error CoursePage)
   -> CourseCodeStr
   -> CliApp ()
-scrapeCourse' runner code = do
-  putLn $ "Scraping course " <> code
-  result <- liftIO . runner . scrapeCourse $ T.pack code
-  outputResult [result]
+scrapeCourse' runner code' = do
+  putLn $ "Scraping course " <> code'
+  eCoursePage <- liftIO . runner $ scrapeCoursePage $ T.pack code'
+  outputResult [eCoursePage]
 
-outputResult :: ToJSON a => [Either AppError a] -> CliApp ()
+outputResult :: ToJSON a => [Either Error a] -> CliApp ()
 outputResult results =
   asks optionsOutput >>= \case
     OutputStdOut -> do
@@ -190,7 +189,11 @@ targetParser =
          [ "Target course to scrape.\n"
          , "Example: \"-p d\", \"-p 'd it u'\"\n"
          , "Available programs: "
-         , unwords $ writeProgram <$> Program.supportedPrograms
+         , unwords
+           $ T.unpack
+           . Program.codeToText
+           . Program.code
+           <$> Program.supportedPrograms
          ])
       )
 
@@ -222,21 +225,3 @@ logFileParser = customLogFile <|> defaultLogFile
         , "Example \"-l log.txt\""
         ])
       )
-
-writeProgram :: Program -> String
-writeProgram (Program EngD  _)   = "d"
-writeProgram (Program EngU _)    = "u"
-writeProgram (Program EngIT _)   = "it"
-writeProgram (Program EngI _)    = "i"
-writeProgram (Program EngIInt _) = "ii"
-writeProgram (Program EngY _)    = "y"
-writeProgram (Program EngYInt _) = "yi"
-writeProgram (Program EngMed _)  = "med"
-writeProgram (Program EngMT _)   = "mt"
-writeProgram (Program EngED _)   = "ed"
-writeProgram (Program EngKTS _)  = "kts"
-writeProgram (Program EngM _)    = "m"
-writeProgram (Program EngEMM _)  = "emm"
-writeProgram (Program EngTB _)   = "tb"
-writeProgram (Program EngKB _)   = "kb"
-writeProgram (Program EngDPU _)  = "dpu"

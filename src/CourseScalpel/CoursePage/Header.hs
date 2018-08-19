@@ -4,6 +4,7 @@ module CourseScalpel.CoursePage.Header
   , scraper
   ) where
 
+import           Data.Aeson                (ToJSON, FromJSON)
 import           Data.Text                 (Text)
 import           Data.Text.Prettyprint.Doc hiding (space)
 import           Text.Megaparsec           hiding (parse)
@@ -11,7 +12,9 @@ import           Text.Megaparsec.Char
 import qualified Text.Megaparsec           as MP
 import qualified Data.Text                 as T
 import           Text.HTML.Scalpel
+import GHC.Generics (Generic)
 
+import           CourseScalpel.Error       (Error, parseError)
 import           CourseScalpel.Parser      (Parser)
 import qualified CourseScalpel.Parser      as Parser
 import qualified CourseScalpel.Course      as Course
@@ -21,7 +24,10 @@ data Header = Header
   { credits :: !Credits
   , code    :: !Text
   , name    :: !Text
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic)
+
+instance FromJSON Header
+instance ToJSON Header
 
 {- A header can look like "Ingenjörsprofessionalism, del 1, 1 hp (TDDD70)"
    so by reversing and breaking on the comma (over here --^) the problem
@@ -35,8 +41,8 @@ parse x = do
   either hoistError pure eHeader
 
   where
-    hoistError :: MP.ParseError Char Parser.Error -> Either Parser.Error Header
-    hoistError = const $ Parser.failure x "Course Page Header"
+    hoistError :: MP.ParseError Char Error -> Either Error Header
+    hoistError = const $ parseError x "Course Page Header"
 
     credCodeParser :: Parser (Course.Credits, Text)
     credCodeParser = do

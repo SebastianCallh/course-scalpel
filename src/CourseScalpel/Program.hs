@@ -8,6 +8,7 @@ module CourseScalpel.Program
   , parseSlug
   , fromSlug
   , slugToText
+  , codeToText
   , engD
   , engU
   , engI
@@ -31,6 +32,7 @@ import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.Data                     (Typeable)
 import           Data.Semigroup                ((<>))
 import           Data.Text                     (Text)
+import           Data.Text.Prettyprint.Doc     (Pretty, pretty)
 import           GHC.Generics                  (Generic)
 import           Test.QuickCheck               (Arbitrary, arbitrary, oneof)
 import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
@@ -46,6 +48,10 @@ data Program = Program
 instance Arbitrary Program where
   arbitrary = oneof $ pure <$> supportedPrograms
 
+instance Pretty Program where
+  pretty Program {..}
+    = pretty code
+    
 --- Code ---
 
 data Code
@@ -70,6 +76,27 @@ data Code
 instance Arbitrary Code where
   arbitrary = genericArbitrary
 
+instance Pretty Code where
+  pretty = pretty . codeToText
+
+codeToText  :: Code -> Text
+codeToText  EngD    = "d"
+codeToText  EngU    = "u"
+codeToText  EngIT   = "it"
+codeToText  EngI    = "i"
+codeToText  EngIInt = "ii"
+codeToText  EngY    = "y"
+codeToText  EngYInt = "yi"
+codeToText  EngMed  = "med"
+codeToText  EngMT   = "mt"
+codeToText  EngED   = "ed"
+codeToText  EngKTS  = "kts"
+codeToText  EngM    = "m"
+codeToText  EngEMM  = "emm"
+codeToText  EngTB   = "tb"
+codeToText  EngKB   = "kb"
+codeToText  EngDPU  = "dpu"
+    
 --- Slug ---
 
 --- These codes are prefixed with a P
@@ -97,6 +124,9 @@ data Slug
 instance Arbitrary Slug where
   arbitrary = genericArbitrary
 
+instance Pretty Slug where
+  pretty = pretty . slugToText
+  
 parseSlug :: Text -> Either Text Slug
 parseSlug "6CDDD" = pure P6CDDD -- D
 parseSlug "6CMJU" = pure P6CMJU -- U

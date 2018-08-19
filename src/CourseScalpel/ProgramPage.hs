@@ -1,5 +1,4 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module CourseScalpel.ProgramPage
   ( ProgramPage (..)
@@ -11,22 +10,21 @@ module CourseScalpel.ProgramPage
   , scrape
   ) where
 
-
-import           Control.Applicative       (liftA2)
-import           Control.Monad.IO.Class    (MonadIO, liftIO)
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import           Data.Text.Prettyprint.Doc
---import           Data.Validation           (Validation (..), toEither)
-import           Text.HTML.Scalpel         hiding (scrape)
-import           Text.Megaparsec           (some, (<|>))
-import qualified Text.Megaparsec           as MP
+import           Control.Applicative    (liftA2)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Maybe             (fromMaybe)
+import           Data.Text              (Text)
+import qualified Data.Text              as T
+import           Text.HTML.Scalpel      hiding (scrape)
+import           Text.Megaparsec        (some, (<|>))
+import qualified Text.Megaparsec        as MP
 import           Text.Megaparsec.Char
 
-import qualified CourseScalpel.Course      as Course
-import           CourseScalpel.Error       (HasError)
-import           CourseScalpel.Parser     (Parser)
-import           CourseScalpel.Web         (Url (..), scrapeError)
+import qualified CourseScalpel.Course   as Course
+import           CourseScalpel.Error    (networkError, parseError)
+import           CourseScalpel.Parser   (Parser)
+import qualified CourseScalpel.Parser   as Parser
+import           CourseScalpel.Web      (Url (..))
 
 -- | A program page like the following
 --   https://liu.se/studieinfo/program/6ctbi
@@ -36,66 +34,26 @@ data ProgramPage = ProgramPage
   } deriving (Show, Eq)
 
 class Monad m => MonadProgramPage m where
-  scrapeProgramPage :: Url -> m ProgramPage
-  
-data Error
-  = ParseError   Text Message
-  | NetworkError Url  Message
-  deriving (Show, Eq)
+  scrapeProgramPage :: Url -> m (Parser.Result ProgramPage)
 
-instance Pretty Error where
-  pretty (ParseError txt msg)
-    =  pretty ("Parse error: " :: Text)
-    <> pretty txt
-    <> pretty msg
-
-  pretty (NetworkError url msg)
-    =  pretty ("Network error: " :: Text)
-    <> pretty url
-    <> pretty msg
-
---newtype Validation a = Monoid e => Validation e a  
---släng validation dep och bygg en egen här
-
-type Result a = Either [Error] a
-
-type Message = Text
-
-parseError :: Text -> Message -> Result a
-parseError txt msg = Left [ParseError txt msg]
-
-networkError :: Url -> Message -> Result a
-networkError url msg = Left [NetworkError url msg]
-
-scrape :: (HasError m, MonadIO m) => Url -> m ProgramPage
+scrape :: MonadIO m => Url -> m (Parser.Result ProgramPage)
 scrape url = do
   content <- scrapeContent url
-  let eProgramPage = ProgramPage
-        <$> (contentName  <$> content)
-        <*> (contentSpecs <$> content)
-
-  case eProgramPage of
-    Left  errors -> scrapeError url $ concatErrorMessages errors
-    Right page   -> pure page
-
-  where
-    concatErrorMessages :: [Error] -> Text
-    concatErrorMessages errors =
-      T.concat . flip map errors $ \case
-      (ParseError   _ msg) -> msg
-      (NetworkError _ msg) -> msg
+  pure $ ProgramPage
+    <$> (contentName  <$> content)
+    <*> (contentSpecs <$> content)
 
 data Content = Content
   { contentName  :: !Text
   , contentSpecs :: ![SpecializationSection]
   } deriving (Show, Eq)
 
-scrapeContent :: MonadIO m => Url -> m (Result Content)
+scrapeContent :: MonadIO m => Url -> m (Parser.Result Content)
 scrapeContent url = do
   meContent <- liftIO $ scrapeURL (T.unpack $ getUrl url) contentScraper
-  maybe (pure $ networkError url "Content") pure meContent
+  pure $ fromMaybe (networkError url) meContent
 
-contentScraper :: Scraper Text (Result Content)
+contentScraper :: Scraper Text (Parser.Result Content)
 contentScraper =
   chroot ("div" @: [hasClass "main-container"]) $ do
     header <- headerScraper
@@ -106,10 +64,10 @@ contentScraper =
 
 newtype Header = Header { getHeader :: Text }
 
-headerScraper :: Scraper Text (Result Header)
+headerScraper :: Scraper Text (Parser.Result Header)
 headerScraper = fmap parseHeader $ chroot "header" $ text "h1"
 
-parseHeader :: Text -> Result Header
+parseHeader :: Text -> Parser.Result Header
 parseHeader x =
   either (const $ parseError x "Header") pure $
     MP.parse parser "" $ T.strip x
@@ -129,7 +87,7 @@ data SpecializationSection = SpecializationSection
   , specSecUrls :: ![Url]
   } deriving (Show, Eq)
 
-planScraper :: Scraper Text (Result Plan)
+planScraper :: Scraper Text (Parser.Result Plan)
 planScraper =
   chroot ("div" @: [hasClass "programplan"]) $ do
     specAttrs <- attrs "data-specialization" $
@@ -146,7 +104,7 @@ planScraper =
 courseUrls :: ProgramPage -> [Url]
 courseUrls = foldMap specSecUrls . programPageSpecializations
 
-parseSpecialization :: Text -> Result Course.Specialization
+parseSpecialization :: Text -> Parser.Result Course.Specialization
 parseSpecialization "programmeringochalgoritmer"       = pure Course.SpecializationAlgorithms
 parseSpecialization "kommunikation"                    = pure Course.SpecializationCommunication
 parseSpecialization "datorsystem"                      = pure Course.SpecializationComputerSystems
