@@ -41,6 +41,7 @@ library
                      , ScopedTypeVariables
                      , ConstraintKinds
                      , LambdaCase
+                     , DeriveGeneric
   build-depends:       base >=4.7 && <5
                      , HUnit
                      , QuickCheck
@@ -59,15 +60,13 @@ library
                      , scalpel
                      , text
                      , turtle
---                     , validation
   exposed-modules:     CourseScalpel
                      , CourseScalpel.App
                      , CourseScalpel.Course
                      , CourseScalpel.CoursePage
                      , CourseScalpel.CoursePage.Header
-                     , CourseScalpel.CoursePage.Programs
+                     , CourseScalpel.CoursePage.Occasion
                      , CourseScalpel.CoursePage.Plan
-                     , CourseScalpel.CourseProgram
                      , CourseScalpel.Credits
                      , CourseScalpel.Error
                      , CourseScalpel.Examination
@@ -94,7 +93,6 @@ test-suite course-scalpel-test
                 , hspec
                 , scalpel
                 , text
---                , validation
   other-modules:  CourseScalpel.CoursePageSpec
                 , CourseScalpel.ProgramPageSpec
   default-language: Haskell2010
