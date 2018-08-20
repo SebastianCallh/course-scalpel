@@ -172,6 +172,9 @@ instance ToADTArbitrary Block
 instance FromJSON Block
 instance ToJSON Block
 
+instance Arbitrary Block where
+  arbitrary = genericArbitrary
+
 instance Pretty Block where
   pretty BlockNil   = "0"
   pretty BlockOne   = "1"
