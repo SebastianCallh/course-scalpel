@@ -13,7 +13,7 @@ import           Data.Text.Prettyprint.Doc
 import           GHC.Generics              (Generic)
 
 newtype Credits = Credits Float
-  deriving (Show, Read, Eq, Ord,
+  deriving (Show, Read, Eq, Ord, Num,
             Generic, FromJSON, ToJSON)
 
 instance Monoid Credits where
