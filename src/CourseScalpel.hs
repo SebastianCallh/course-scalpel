@@ -9,10 +9,11 @@ module CourseScalpel
   , mkConfig
   ) where
 
-import CourseScalpel.Course as X (Course)
-import CourseScalpel.Program as X (Program(..))
-import CourseScalpel.CoursePage as X (CoursePage, MonadCoursePage)
-import CourseScalpel.ProgramPage as X (MonadProgramPage)
+import CourseScalpel.CoursePage          as X (CoursePage, MonadCoursePage)
+import CourseScalpel.ProgramPage         as X (MonadProgramPage)
+import CourseScalpel.CoursePage.Occasion as X (Occasion (..), Semester (..)
+                                              , Period (..), Block (..)
+                                              , Importance (..))
 
 import           Control.Parallel.Strategies
 import           Data.Text                 (Text)
@@ -24,6 +25,7 @@ import           Data.Either                (partitionEithers)
 import qualified CourseScalpel.CoursePage  as CoursePage
 import qualified CourseScalpel.Parser      as Parser
 import           CourseScalpel.App         (App, Config (..), runApp)
+import           CourseScalpel.Program     (Program)
 import qualified CourseScalpel.Program     as Program
 import           CourseScalpel.Error       (Error, MonadError)
 import qualified CourseScalpel.ProgramPage as ProgramPage
