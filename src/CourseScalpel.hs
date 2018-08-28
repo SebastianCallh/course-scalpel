@@ -14,7 +14,11 @@ import CourseScalpel.ProgramPage         as X (MonadProgramPage)
 import CourseScalpel.CoursePage.Occasion as X (Occasion (..), Semester (..)
                                               , Period (..), Block (..)
                                               , Importance (..))
-
+import CourseScalpel.Program             as X (engD, engU, engI, engIInt
+                                              , engIT, engY, engYInt, engMed
+                                              , engMT, engED, engKTS, engM
+                                              , engEMM, engTB, engDPU, engKB
+                                              , supportedPrograms)
 import           Control.Parallel.Strategies
 import           Data.Text                 (Text)
 import           Data.Semigroup            ((<>))
