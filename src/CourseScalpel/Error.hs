@@ -2,7 +2,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module CourseScalpel.Error
-  ( Error
+  ( Error (..)
+  , Type
   , MonadError
   , networkError
   , parseError
