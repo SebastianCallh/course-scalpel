@@ -1,6 +1,6 @@
-{ mkDerivation, aeson, base, containers, either, hspec, HUnit
-, megaparsec, monad-logger, mtl, optparse-applicative, parallel
-, parser-combinators, prettyprinter, QuickCheck
+{ mkDerivation, aeson, base, containers, either, ghcid, hspec
+, HUnit, megaparsec, monad-logger, mtl, optparse-applicative
+, parallel, parser-combinators, prettyprinter, QuickCheck
 , quickcheck-arbitrary-adt, safe, scalpel, split, stdenv, text
 , time, turtle
 }:
@@ -15,6 +15,7 @@ mkDerivation {
     mtl parallel parser-combinators prettyprinter QuickCheck
     quickcheck-arbitrary-adt safe scalpel text turtle
   ];
+  libraryToolDepends = [ ghcid ];
   executableHaskellDepends = [
     aeson base containers monad-logger mtl optparse-applicative
     prettyprinter scalpel split text time

@@ -35,6 +35,7 @@ executable course-scalpel-cli
 library
   hs-source-dirs:      src
   ghc-options:         -Wall -O2
+  build-tool-depends:  ghcid:ghcid
   default-extensions:  RecordWildCards
                      , OverloadedStrings
                      , FlexibleContexts
