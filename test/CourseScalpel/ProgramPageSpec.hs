@@ -11,23 +11,17 @@ import qualified CourseScalpel.ProgramPage as ProgramPage
 
 spec :: SpecWith ()
 spec =
-  describe "programPageContentScraper" $
+  describe "programPageScraper" $
     it "scrapes program 6cddd correctly" $ do
-     markup <- readFile "test/markup/program-6cddd.html"
-     let eProgramPageContent = fromJust $
-           scrapeStringLike markup ProgramPage.contentScraper
 
-     ProgramPage.contentName <$> eProgramPageContent `shouldBe`
+     markup <- readFile "test/markup/program-6cddd.html"
+     let epage = fromJust $ scrapeStringLike markup ProgramPage.scraper
+
+     ProgramPage.name <$> epage `shouldBe`
        Right "Civilingenjör i datateknik"
 
-     let eSpecSecs = ProgramPage.contentSpecs <$> eProgramPageContent
-     let eUrls = foldMap ProgramPage.specSecUrls <$> eSpecSecs
+     let eUrls = ProgramPage.courseUrls <$> epage
      let mExpectedURLs = scrapeStringLike markup $
            attrs "href" (("div" @: [hasClass "programplan"]) // "a")
 
-     let mExpectedSpecSecs = scrapeStringLike markup $
-           attrs "data-specialization" (("div" @: [hasClass "programplan"]) //
-                                        ("div" @: [hasClass "specialization"]))
-
-     length <$> eUrls     `shouldBe` pure (length $ fromJust mExpectedURLs)
-     length <$> eSpecSecs `shouldBe` pure (length $ fromJust mExpectedSpecSecs)
+     length <$> eUrls `shouldBe` pure (length $ fromJust mExpectedURLs)

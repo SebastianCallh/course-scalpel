@@ -37,8 +37,8 @@ type ScrapeResult = Web.ScrapeResult ProgramPage
 -- | A program page like the following
 --   https://liu.se/studieinfo/program/6ctbi
 data ProgramPage = ProgramPage
-  { programPageName            :: !Text
-  , programPageSpecializations :: ![SpecializationSection]
+  { name     :: !Text
+  , sections :: ![SpecializationSection]
   } deriving (Show, Eq, Generic)
 
 instance ToJSON ProgramPage
@@ -81,8 +81,8 @@ data Plan = Plan
   } deriving (Show, Eq)
 
 data SpecializationSection = SpecializationSection
-  { _specSecSpec :: !Course.Specialization
-  , specSecUrls  :: ![Url]
+  { _sectionSpecialization :: !Course.Specialization
+  , sectionUrls            :: ![Url]
   } deriving (Show, Eq, Generic)
 
 instance ToJSON SpecializationSection
@@ -107,7 +107,7 @@ planScraper =
     pure $ Plan <$> specSecs
 
 courseUrls :: ProgramPage -> [Url]
-courseUrls = foldMap specSecUrls . programPageSpecializations
+courseUrls = foldMap sectionUrls . sections
 
 parseSpecialization :: Text -> Parser.Result Course.Specialization
 parseSpecialization "programmeringochalgoritmer"       = pure Course.SpecializationAlgorithms
