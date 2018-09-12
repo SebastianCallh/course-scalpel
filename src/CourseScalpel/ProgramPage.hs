@@ -2,15 +2,15 @@
 
 module CourseScalpel.ProgramPage
   ( ProgramPage (..)
-  , ScrapeResult (..)
+  , ScrapeResult
   , MonadProgramPage (..)
-  , pageScraper
+  , scraper
   , courseUrls
   , scrape
   ) where
 
 import           Control.Applicative       (liftA2)
-import           Control.Monad.IO.Class    (MonadIO, liftIO)
+import           Control.Monad.IO.Class    (MonadIO)
 import           Data.Aeson                (ToJSON)
 import           Data.Semigroup            ((<>))
 import           Data.Text                 (Text)
@@ -23,13 +23,16 @@ import qualified Text.Megaparsec           as MP
 import           Text.Megaparsec.Char
 
 import qualified CourseScalpel.Course      as Course
-import           CourseScalpel.Error       (Error, parseError)
+import           CourseScalpel.Error       (parseError)
 import           CourseScalpel.Parser      (Parser)
 import qualified CourseScalpel.Parser      as Parser
 import           CourseScalpel.Web         (Url (..))
+import qualified CourseScalpel.Web         as Web
 
 class Monad m => MonadProgramPage m where
   scrapeProgramPage :: Url -> m ScrapeResult
+
+type ScrapeResult = Web.ScrapeResult ProgramPage
 
 -- | A program page like the following
 --   https://liu.se/studieinfo/program/6ctbi
@@ -45,38 +48,11 @@ instance Pretty ProgramPage where
     =  pretty name
     <> pretty specs
 
-data ScrapeResult
-  = ScrapeSuccess ProgramPage
-  | ScrapeFail    Error
-  | NetworkError  Url
-  deriving Generic
-
-instance ToJSON ScrapeResult
-
-instance Pretty ScrapeResult where
-  pretty (NetworkError url)
-    =  "Could not query url "
-    <> pretty url
-
-  pretty (ScrapeFail err)
-    =  "Error scraping program page: "
-    <> pretty err
-
-  pretty (ScrapeSuccess program)
-    = "Program scraped!\n"
-    <> pretty program
-
 scrape :: MonadIO m => Url -> m ScrapeResult
-scrape url = do
-  mepage <- liftIO $ scrapeURL (T.unpack $ getUrl url) pageScraper
-  pure $ case mepage of
-    Nothing    -> NetworkError url
-    Just epage -> case epage of
-      Left  err  -> ScrapeFail err
-      Right page -> ScrapeSuccess page
+scrape = Web.scrapeUrl scraper
 
-pageScraper :: Scraper Text (Parser.Result ProgramPage)
-pageScraper =
+scraper :: Scraper Text (Parser.Result ProgramPage)
+scraper =
   chroot ("div" @: [hasClass "main-container"]) $ do
     header <- headerScraper
     plan   <- planScraper

@@ -5,6 +5,7 @@
 
 module CourseScalpel.CoursePage
   ( CoursePage
+  , ScrapeResult
   , MonadCoursePage (..)
   , module X
   , scrape
@@ -17,22 +18,24 @@ import           CourseScalpel.CoursePage.Header   as X (Header (..))
 import           CourseScalpel.CoursePage.Occasion as X (Occasion (..))
 import           CourseScalpel.CoursePage.Plan     as X (Plan (..))
 
-import           Control.Monad.IO.Class    (MonadIO, liftIO)
-import           Data.Semigroup ((<>))
-import           Data.Text.Prettyprint.Doc (Pretty, pretty)
-import           Data.Aeson                (ToJSON, FromJSON)
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import           Text.HTML.Scalpel         hiding (scrape)
-import           GHC.Generics (Generic)
+import           Control.Monad.IO.Class            (MonadIO)
+import           Data.Aeson                        (ToJSON)
+import           Data.Semigroup                    ((<>))
+import           Data.Text                         (Text)
+import           Data.Text.Prettyprint.Doc         (Pretty, pretty)
+import           GHC.Generics                      (Generic)
+import           Text.HTML.Scalpel                 hiding (scrape)
 
 import           CourseScalpel.Course              (Course)
 import qualified CourseScalpel.Course              as Course
-import qualified CourseScalpel.Parser              as Parser
-import           CourseScalpel.Web                 (Url (..), networkError)
 import qualified CourseScalpel.CoursePage.Header   as Header
 import qualified CourseScalpel.CoursePage.Occasion as Occasion
 import qualified CourseScalpel.CoursePage.Plan     as Plan
+import qualified CourseScalpel.Parser              as Parser
+import           CourseScalpel.Web                 (Url (..))
+import qualified CourseScalpel.Web                 as Web
+
+type ScrapeResult = Web.ScrapeResult CoursePage
 
 data CoursePage = CoursePage
   { header    :: !Header
@@ -40,7 +43,6 @@ data CoursePage = CoursePage
   , plan      :: !Plan
   } deriving (Show, Eq, Generic)
 
-instance FromJSON CoursePage
 instance ToJSON CoursePage
 
 instance Pretty CoursePage where
@@ -48,15 +50,12 @@ instance Pretty CoursePage where
     =  pretty header
     <> pretty occasions
     <> pretty plan
-  
+
 class Monad m => MonadCoursePage m where
-  scrapeCoursePage :: Url -> m (Parser.Result CoursePage)
- 
-scrape :: MonadIO m => Url -> m (Parser.Result CoursePage)
-scrape url =
-  liftIO $ scrapeURL (T.unpack $ getUrl url) scraper >>= \case
-    Nothing          -> pure $ networkError url
-    Just eCoursePage -> pure eCoursePage
+  scrapeCoursePage :: Url -> m ScrapeResult
+
+scrape :: MonadIO m => Url -> m ScrapeResult
+scrape = Web.scrapeUrl scraper
 
 scraper :: Scraper Text (Parser.Result CoursePage)
 scraper = do

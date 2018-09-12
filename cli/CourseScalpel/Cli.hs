@@ -27,9 +27,9 @@ import qualified Data.Text.Lazy            as L
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
 import           Options.Applicative
 
-import           CourseScalpel             (CourseScalpelRunner,
-                                            ProgramPageScrapeResult,
-                                            ScrapeCoursePageResult, mkConfig,
+import           CourseScalpel             (CoursePageScrapeResult,
+                                            CourseScalpelRunner,
+                                            ProgramPageScrapeResult, mkConfig,
                                             runCourseScalpel, scrapeCoursePage,
                                             scrapeProgramPage)
 import           CourseScalpel.Error       (Error)
@@ -104,7 +104,7 @@ scrapePrograms' runner programs = do
   outputResult results
 
 scrapeCourse'
-  :: CourseScalpelRunner ScrapeCoursePageResult
+  :: CourseScalpelRunner CoursePageScrapeResult
   -> CourseCodeStr
   -> CliApp ()
 scrapeCourse' runner code' = do
