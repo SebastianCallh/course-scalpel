@@ -1,6 +1,5 @@
 module CourseScalpel
-  ( CourseScalpelRunner
-  , ScrapeResult (..)
+  ( ScrapeResult (..)
   , module X
   , scrapeProgramPage
   , scrapeCoursePage
@@ -20,7 +19,6 @@ import           CourseScalpel.CoursePage.Occasion as X (Block (..),
                                                          Occasion (..),
                                                          Period (..),
                                                          Semester (..))
-import           CourseScalpel.Error               (Error (..))
 import           CourseScalpel.Program             (Program)
 import           CourseScalpel.Program             as X (engD, engDPU, engED,
                                                          engEMM, engI, engIInt,
@@ -35,9 +33,7 @@ import           CourseScalpel.ProgramPage         as X (MonadProgramPage,
 import qualified CourseScalpel.ProgramPage         as ProgramPage
 import           CourseScalpel.Web                 (ScrapeResult (..), Url (..))
 
-type CourseScalpelRunner a   = App a -> IO (Either Error a)
-
-runCourseScalpel :: Config -> CourseScalpelRunner a
+runCourseScalpel :: Config -> App a -> IO a
 runCourseScalpel = runApp
 
 mkConfig :: FilePath -> Config
