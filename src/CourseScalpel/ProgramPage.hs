@@ -2,7 +2,6 @@
 
 module CourseScalpel.ProgramPage
   ( ProgramPage (..)
-  , ScrapeResult
   , MonadProgramPage (..)
   , scraper
   , courseUrls

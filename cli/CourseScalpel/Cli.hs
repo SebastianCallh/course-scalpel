@@ -27,11 +27,10 @@ import qualified Data.Text.Lazy            as L
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
 import           Options.Applicative
 
-import           CourseScalpel             (CoursePageScrapeResult,
-                                            CourseScalpelRunner,
-                                            ProgramPageScrapeResult, mkConfig,
-                                            runCourseScalpel, scrapeCoursePage,
-                                            scrapeProgramPage)
+import           CourseScalpel             (CoursePage, CourseScalpelRunner,
+                                            ProgramPage, ScrapeResult (..),
+                                            mkConfig, runCourseScalpel,
+                                            scrapeCoursePage, scrapeProgramPage)
 import           CourseScalpel.Error       (Error)
 
 import           CourseScalpel.Program     (Program (..))
@@ -78,7 +77,7 @@ main = do
 runCliApp :: Options -> CliApp a -> IO (Either CliError a)
 runCliApp options = logRunner . readerRunner . runExceptT . unCli
   where
-    logRunner      = runStdoutLoggingT -- $ optionsLogFile options
+    logRunner      = runStdoutLoggingT
     readerRunner x = runReaderT x options
 
 cliApp :: CliApp ()
@@ -91,7 +90,7 @@ cliApp = do
     TargetCourse   courseCode -> scrapeCourse'   runner courseCode
 
 scrapePrograms'
-  :: CourseScalpelRunner ProgramPageScrapeResult
+  :: CourseScalpelRunner (ScrapeResult ProgramPage)
   -> [Program]
   -> CliApp ()
 scrapePrograms' runner programs = do
@@ -104,7 +103,7 @@ scrapePrograms' runner programs = do
   outputResult results
 
 scrapeCourse'
-  :: CourseScalpelRunner CoursePageScrapeResult
+  :: CourseScalpelRunner (ScrapeResult CoursePage)
   -> CourseCodeStr
   -> CliApp ()
 scrapeCourse' runner code' = do

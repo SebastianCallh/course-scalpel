@@ -1,7 +1,6 @@
 module CourseScalpel
-  ( ProgramPageScrapeResult
-  , CoursePageScrapeResult
-  , CourseScalpelRunner
+  ( CourseScalpelRunner
+  , ScrapeResult (..)
   , module X
   , scrapeProgramPage
   , scrapeCoursePage
@@ -31,13 +30,12 @@ import           CourseScalpel.Program             as X (engD, engDPU, engED,
                                                          engYInt,
                                                          supportedPrograms)
 import qualified CourseScalpel.Program             as Program
-import           CourseScalpel.ProgramPage         as X (MonadProgramPage)
+import           CourseScalpel.ProgramPage         as X (MonadProgramPage,
+                                                         ProgramPage)
 import qualified CourseScalpel.ProgramPage         as ProgramPage
-import           CourseScalpel.Web                 (Url (..))
+import           CourseScalpel.Web                 (ScrapeResult (..), Url (..))
 
-type ProgramPageScrapeResult = ProgramPage.ScrapeResult
-type CoursePageScrapeResult = CoursePage.ScrapeResult
-type CourseScalpelRunner a = App a -> IO (Either Error a)
+type CourseScalpelRunner a   = App a -> IO (Either Error a)
 
 runCourseScalpel :: Config -> CourseScalpelRunner a
 runCourseScalpel = runApp
@@ -45,7 +43,7 @@ runCourseScalpel = runApp
 mkConfig :: FilePath -> Config
 mkConfig = Config
 
-scrapeProgramPage :: MonadProgramPage m => Program -> m ProgramPage.ScrapeResult
+scrapeProgramPage :: MonadProgramPage m => Program -> m (ScrapeResult ProgramPage)
 scrapeProgramPage program = ProgramPage.scrapeProgramPage url
   where
     url = Url $ "https://liu.se/studieinfo/program/"
