@@ -27,12 +27,12 @@ import qualified Data.Text.Lazy            as L
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
 import           Options.Applicative
 
-import           CourseScalpel             (CoursePage, CourseScalpelRunner,
-                                            ProgramPage, ScrapeResult (..),
-                                            mkConfig, runCourseScalpel,
-                                            scrapeCoursePage, scrapeProgramPage)
+import           CourseScalpel             (CoursePage, ProgramPage,
+                                            ScrapeResult (..), mkConfig,
+                                            runCourseScalpel, scrapeCoursePage,
+                                            scrapeProgramPage)
+import           CourseScalpel.App         (App)
 import           CourseScalpel.Error       (Error)
-
 import           CourseScalpel.Program     (Program (..))
 import qualified CourseScalpel.Program     as Program
 
@@ -66,13 +66,15 @@ newtype CliApp a = CliApp { unCli :: ExceptT CliError (ReaderT Options (LoggingT
   deriving (Functor, Applicative, Monad, MonadIO, MonadError CliError,
             MonadReader Options, MonadLogger)
 
+type Runner a = App a -> IO a
+
 main :: IO ()
 main = do
   options <- execParser opts
-  result  <- runCliApp options cliApp
-  case result of
-    Left cliError -> print $ pretty cliError
-    Right _       -> putStrLn "Done!"
+  runCliApp options cliApp >>= \case
+    Left err -> print $ pretty err
+    Right _  -> pure ()
+
 
 runCliApp :: Options -> CliApp a -> IO (Either CliError a)
 runCliApp options = logRunner . readerRunner . runExceptT . unCli
@@ -90,7 +92,7 @@ cliApp = do
     TargetCourse   courseCode -> scrapeCourse'   runner courseCode
 
 scrapePrograms'
-  :: CourseScalpelRunner (ScrapeResult ProgramPage)
+  :: Runner (ScrapeResult ProgramPage)
   -> [Program]
   -> CliApp ()
 scrapePrograms' runner programs = do
@@ -103,7 +105,7 @@ scrapePrograms' runner programs = do
   outputResult results
 
 scrapeCourse'
-  :: CourseScalpelRunner (ScrapeResult CoursePage)
+  :: Runner (ScrapeResult CoursePage)
   -> CourseCodeStr
   -> CliApp ()
 scrapeCourse' runner code' = do
@@ -111,22 +113,16 @@ scrapeCourse' runner code' = do
   eCoursePage <- liftIO . runner $ scrapeCoursePage $ T.pack code'
   outputResult [eCoursePage]
 
-outputResult :: ToJSON a => [Either Error a] -> CliApp ()
+outputResult :: ToJSON a => [ScrapeResult a] -> CliApp ()
 outputResult results =
   asks optionsOutput >>= \case
     OutputStdOut -> do
       _ <- liftIO  $ traverse (putStrLn . toStr) results
       pure ()
 
-    OutputFile path ->
-      case sequence results of
-        Left  err -> do
-          liftIO . print $ pretty err
-          putLn "There were errors. No results written."
-
-        Right scrapeRes -> do
-          liftIO . writeFile path $ toStr scrapeRes
-          putLn $ "Results written to " <> path <> " ."
+    OutputFile path -> do
+      liftIO . writeFile path $ toStr results
+      putLn $ "Results written to " <> path <> "."
 
   where
     toStr :: ToJSON a => a -> String
