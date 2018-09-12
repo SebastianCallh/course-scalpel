@@ -5,14 +5,12 @@ module CourseScalpel.Error
   ( Error (..)
   , Type
   , MonadError
-  , networkError
   , parseError
   , unsupportedProgramError
   , filterUnsupportedProgramErrors
   ) where
 
 import qualified Control.Monad.Except      as Except
-import           CourseScalpel.Web.Url     (Url (..))
 import           Data.Aeson                (FromJSON, ToJSON)
 import           Data.Semigroup            (Semigroup (..), (<>))
 import           Data.Text                 (Text)
@@ -25,7 +23,6 @@ type Slug    = Text
 type Type    = Text
 data Error
   = ParseError   Text Type
-  | NetworkError Url
   | UnsupportedProgramError Slug
   deriving (Eq, Ord, Generic)
 
@@ -41,9 +38,6 @@ instance Pretty Error where
 parseError :: MonadError m => Text -> Type -> m a
 parseError txt typ = error $ ParseError txt typ
 
-networkError :: MonadError m => Url -> m a
-networkError = error . NetworkError
-
 unsupportedProgramError :: MonadError m => Slug -> m a
 unsupportedProgramError = error . UnsupportedProgramError
 
@@ -58,11 +52,6 @@ toText (ParseError txt typ)
 toText (UnsupportedProgramError slug)
   =  "No supported program for slug "
   <> slug
-  <> "."
-
-toText (NetworkError (Url url))
-  =  "Could not connect to "
-  <> url
   <> "."
 
 -- | May want to change error handling, so it gets its own type
