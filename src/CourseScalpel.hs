@@ -1,5 +1,5 @@
 module CourseScalpel
-  ( ScrapeProgramPageResult (..)
+  ( ProgramPageScrapeResult
   , ScrapeCoursePageResult (..)
   , CourseScalpelRunner
   , module X
@@ -10,12 +10,12 @@ module CourseScalpel
   ) where
 
 import           GHC.Generics              (Generic)
-import           Control.Parallel.Strategies
+--import           Control.Parallel.Strategies
 import           Data.Text                 (Text)
 import           Data.Semigroup            ((<>))
-import           Data.Aeson                (object, (.=),ToJSON (..))
+import           Data.Aeson                (ToJSON (..))
 import           Data.Text.Prettyprint.Doc (Pretty, pretty)
-import           Data.Either               (partitionEithers)
+--import           Data.Either               (partitionEithers)
 
 import qualified CourseScalpel.CoursePage          as CoursePage
 import           CourseScalpel.App                 (App, Config (..), runApp)
@@ -35,6 +35,9 @@ import           CourseScalpel.Program             as X (engD, engU, engI, engII
                                                         , engEMM, engTB, engDPU, engKB
                                                         , supportedPrograms)
 
+type ProgramPageScrapeResult = ProgramPage.ScrapeResult
+
+{-
 data ScrapeProgramPageResult
   = ScrapeProgramPageSuccess [Error] [CoursePage]
   | ScrapeProgramPageError   Error
@@ -58,6 +61,7 @@ instance Pretty ScrapeProgramPageResult where
     <> " and encoutered "
     <> pretty (length errors)
     <> " errors."
+-}
 
 type CourseScalpelRunner a = App a -> IO (Either Error a)
 
@@ -73,17 +77,19 @@ scrapeProgramPage
      MonadProgramPage m,
      MonadError m)
   => Program
-  -> m ScrapeProgramPageResult
+  -> m ProgramPage.ScrapeResult
 scrapeProgramPage program =
-  ProgramPage.scrapeProgramPage url >>= \case
-    Left err          -> pure $ ScrapeProgramPageError err
-    Right programPage -> do    
+  ProgramPage.scrapeProgramPage url
+  {->>= \case    
+    ProgramPage.ScrapeFail   err    -> pure $ ScrapeProgramPageError err
+    ProgramPage.NetworkError errUrl -> undefined errUrl -- pure $ ScrapeProgramPageError     
+    ProgramPage.ScrapeSuccess page -> do
       eCoursePages <- sequence $ parMap rpar CoursePage.scrapeCoursePage $
-        ProgramPage.courseUrls programPage
-    
+        ProgramPage.courseUrls page
+
       pure $ uncurry ScrapeProgramPageSuccess $
         partitionEithers eCoursePages
-
+-}
   where
     url = Url $ "https://liu.se/studieinfo/program/"
           <> Program.slugToText (Program.slug program)

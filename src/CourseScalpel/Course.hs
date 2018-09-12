@@ -24,7 +24,7 @@ import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.Data                     (Typeable)
 import           Data.Ord                      (comparing)
 import           Data.Text                     (Text)
-import           Data.Text.Prettyprint.Doc
+import           Data.Text.Prettyprint.Doc     (Pretty, pretty)
 import           GHC.Generics                  (Generic)
 import           Test.QuickCheck               (Arbitrary (..))
 import           Test.QuickCheck.Arbitrary.ADT (ToADTArbitrary,
@@ -197,3 +197,20 @@ data Specialization
 
 instance Arbitrary Specialization where
   arbitrary = genericArbitrary
+
+instance Pretty Specialization where
+  pretty SpecializationAlgorithms            = "Algoritmer"
+  pretty SpecializationCommunication         = "Kommunikation"
+  pretty SpecializationComputerSystems       = "Datorsystem"
+  pretty SpecializationElectronics           = "Elektronik"
+  pretty SpecializationGames                 = "Spelprogrammering"
+  pretty SpecializationIndustrialEconomics   = "Industriell ekonomi"
+  pretty SpecializationInternational         = "International software engineering"
+  pretty SpecializationMachineLearning       = "Maskininlärning"
+  pretty SpecializationMedicinalInformatics  = "Medicinsk informatik"
+  pretty SpecializationNone                  = "Ingen"
+  pretty SpecializationSafeSystems           = "Säkra system"
+  pretty SpecializationSignalProcessing      = "Signalbehandling"
+  pretty SpecializationSoftwareEngineering   = "Datateknik"
+  pretty SpecializationSystemsTechnology     = "Systemteknologi"
+  pretty SpecializationSystemOnChip          = "System on a chip"

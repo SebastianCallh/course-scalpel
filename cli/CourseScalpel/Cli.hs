@@ -28,10 +28,10 @@ import           Data.Text.Prettyprint.Doc (Pretty, pretty)
 import           Options.Applicative
 
 import           CourseScalpel             (CourseScalpelRunner,
-                                            ScrapeProgramPageResult (..),
-                                            mkConfig, runCourseScalpel,
-                                            scrapeCoursePage, scrapeProgramPage)
-import           CourseScalpel.CoursePage  (CoursePage)
+                                            ProgramPageScrapeResult,
+                                            ScrapeCoursePageResult, mkConfig,
+                                            runCourseScalpel, scrapeCoursePage,
+                                            scrapeProgramPage)
 import           CourseScalpel.Error       (Error)
 
 import           CourseScalpel.Program     (Program (..))
@@ -91,7 +91,7 @@ cliApp = do
     TargetCourse   courseCode -> scrapeCourse'   runner courseCode
 
 scrapePrograms'
-  :: CourseScalpelRunner ScrapeProgramPageResult
+  :: CourseScalpelRunner ProgramPageScrapeResult
   -> [Program]
   -> CliApp ()
 scrapePrograms' runner programs = do
@@ -104,7 +104,7 @@ scrapePrograms' runner programs = do
   outputResult results
 
 scrapeCourse'
-  :: CourseScalpelRunner (Either Error CoursePage)
+  :: CourseScalpelRunner ScrapeCoursePageResult
   -> CourseCodeStr
   -> CliApp ()
 scrapeCourse' runner code' = do

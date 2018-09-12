@@ -2,63 +2,85 @@
 
 module CourseScalpel.ProgramPage
   ( ProgramPage (..)
+  , ScrapeResult (..)
   , MonadProgramPage (..)
-  , SpecializationSection (..)
-  , Content (..)
-  , contentScraper
+  , pageScraper
   , courseUrls
   , scrape
   ) where
 
-import           Control.Applicative    (liftA2)
-import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Data.Maybe             (fromMaybe)
-import           Data.Text              (Text)
-import qualified Data.Text              as T
-import           Text.HTML.Scalpel      hiding (scrape)
-import           Text.Megaparsec        (some, (<|>))
-import qualified Text.Megaparsec        as MP
+import           Control.Applicative       (liftA2)
+import           Control.Monad.IO.Class    (MonadIO, liftIO)
+import           Data.Aeson                (ToJSON)
+import           Data.Semigroup            ((<>))
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import           Data.Text.Prettyprint.Doc (Pretty, pretty)
+import           GHC.Generics              (Generic)
+import           Text.HTML.Scalpel         hiding (scrape)
+import           Text.Megaparsec           (some, (<|>))
+import qualified Text.Megaparsec           as MP
 import           Text.Megaparsec.Char
 
-import qualified CourseScalpel.Course   as Course
-import           CourseScalpel.Error    (networkError, parseError)
-import           CourseScalpel.Parser   (Parser)
-import qualified CourseScalpel.Parser   as Parser
-import           CourseScalpel.Web      (Url (..))
+import qualified CourseScalpel.Course      as Course
+import           CourseScalpel.Error       (Error, parseError)
+import           CourseScalpel.Parser      (Parser)
+import qualified CourseScalpel.Parser      as Parser
+import           CourseScalpel.Web         (Url (..))
+
+class Monad m => MonadProgramPage m where
+  scrapeProgramPage :: Url -> m ScrapeResult
 
 -- | A program page like the following
 --   https://liu.se/studieinfo/program/6ctbi
 data ProgramPage = ProgramPage
   { programPageName            :: !Text
   , programPageSpecializations :: ![SpecializationSection]
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic)
 
-class Monad m => MonadProgramPage m where
-  scrapeProgramPage :: Url -> m (Parser.Result ProgramPage)
+instance ToJSON ProgramPage
 
-scrape :: MonadIO m => Url -> m (Parser.Result ProgramPage)
+instance Pretty ProgramPage where
+  pretty (ProgramPage name specs)
+    =  pretty name
+    <> pretty specs
+
+data ScrapeResult
+  = ScrapeSuccess ProgramPage
+  | ScrapeFail    Error
+  | NetworkError  Url
+  deriving Generic
+
+instance ToJSON ScrapeResult
+
+instance Pretty ScrapeResult where
+  pretty (NetworkError url)
+    =  "Could not query url "
+    <> pretty url
+
+  pretty (ScrapeFail err)
+    =  "Error scraping program page: "
+    <> pretty err
+
+  pretty (ScrapeSuccess program)
+    = "Program scraped!\n"
+    <> pretty program
+
+scrape :: MonadIO m => Url -> m ScrapeResult
 scrape url = do
-  content <- scrapeContent url
-  pure $ ProgramPage
-    <$> (contentName  <$> content)
-    <*> (contentSpecs <$> content)
+  mepage <- liftIO $ scrapeURL (T.unpack $ getUrl url) pageScraper
+  pure $ case mepage of
+    Nothing    -> NetworkError url
+    Just epage -> case epage of
+      Left  err  -> ScrapeFail err
+      Right page -> ScrapeSuccess page
 
-data Content = Content
-  { contentName  :: !Text
-  , contentSpecs :: ![SpecializationSection]
-  } deriving (Show, Eq)
-
-scrapeContent :: MonadIO m => Url -> m (Parser.Result Content)
-scrapeContent url = do
-  meContent <- liftIO $ scrapeURL (T.unpack $ getUrl url) contentScraper
-  pure $ fromMaybe (networkError url) meContent
-
-contentScraper :: Scraper Text (Parser.Result Content)
-contentScraper =
+pageScraper :: Scraper Text (Parser.Result ProgramPage)
+pageScraper =
   chroot ("div" @: [hasClass "main-container"]) $ do
     header <- headerScraper
     plan   <- planScraper
-    pure $ Content
+    pure $ ProgramPage
       <$> (getHeader <$> header)
       <*> (planSpecs <$> plan)
 
@@ -66,12 +88,12 @@ newtype Header = Header { getHeader :: Text }
 
 headerScraper :: Scraper Text (Parser.Result Header)
 headerScraper = fmap parseHeader $ chroot "header" $ text "h1"
-
-parseHeader :: Text -> Parser.Result Header
-parseHeader x =
-  either (const $ parseError x "Header") pure $
-    MP.parse parser "" $ T.strip x
   where
+    parseHeader :: Text -> Parser.Result Header
+    parseHeader x =
+      either (const $ parseError x "Header") pure $
+      MP.parse parser "" $ T.strip x
+
     parser :: Parser Header
     parser = do
       name <- some (spaceChar <|> letterChar)
@@ -83,9 +105,16 @@ data Plan = Plan
   } deriving (Show, Eq)
 
 data SpecializationSection = SpecializationSection
-  { specSecSpec :: !Course.Specialization
-  , specSecUrls :: ![Url]
-  } deriving (Show, Eq)
+  { _specSecSpec :: !Course.Specialization
+  , specSecUrls  :: ![Url]
+  } deriving (Show, Eq, Generic)
+
+instance ToJSON SpecializationSection
+
+instance Pretty SpecializationSection where
+  pretty (SpecializationSection spec urls)
+    =  pretty spec
+    <> pretty urls
 
 planScraper :: Scraper Text (Parser.Result Plan)
 planScraper =
